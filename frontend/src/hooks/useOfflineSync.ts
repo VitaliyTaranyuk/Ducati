@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useOfflineStore } from '../store';
 import { getQueuedRequests, syncQueue } from '../lib/offlineQueue';
-import { apiFetch, initCsrf } from '../lib/api';
+import { apiFetch, hasRemoteApi, initCsrf } from '../lib/api';
 
 async function processQueueItem(url: string, method: string, body: unknown): Promise<boolean> {
   try {
@@ -21,7 +21,7 @@ async function refreshQueueCount() {
 }
 
 export async function syncOfflineQueue(): Promise<{ synced: number; failed: number }> {
-  if (!navigator.onLine) return { synced: 0, failed: 0 };
+  if (!navigator.onLine || !hasRemoteApi()) return { synced: 0, failed: 0 };
   if (syncInFlight) return syncInFlight;
 
   syncInFlight = (async () => {

@@ -4,8 +4,12 @@ import type { DrinkCategory } from '../types';
 const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
 
 /** GitHub Pages has no API unless VITE_API_URL is set at build time. */
+export function hasRemoteApi(): boolean {
+  return Boolean(import.meta.env.VITE_API_URL) || import.meta.env.BASE_URL === '/';
+}
+
 function useBundledCatalog(): boolean {
-  return !import.meta.env.VITE_API_URL && import.meta.env.BASE_URL !== '/';
+  return !hasRemoteApi();
 }
 
 function bundledDrinks(category?: DrinkCategory) {
@@ -18,6 +22,7 @@ function bundledDrinks(category?: DrinkCategory) {
 let csrfToken: string | null = null;
 
 export async function initCsrf(): Promise<string> {
+  if (!hasRemoteApi()) return '';
   const res = await fetch(`${API_BASE}/auth/csrf`, { credentials: 'include' });
   const data = await res.json();
   csrfToken = data.csrfToken;

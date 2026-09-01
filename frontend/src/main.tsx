@@ -16,7 +16,7 @@ import { HistoryPage } from './pages/HistoryPage';
 import { LoginPage } from './pages/LoginPage';
 import { BaristaPage } from './pages/BaristaPage';
 import { OwnerPage } from './pages/OwnerPage';
-import { initCsrf, authApi } from './lib/api';
+import { hasRemoteApi, initCsrf, authApi } from './lib/api';
 import { useAuthStore } from './store';
 import { useOfflineSync } from './hooks/useOfflineSync';
 
@@ -40,11 +40,10 @@ function AppShell() {
 
   useEffect(() => {
     let cancelled = false;
-    const hasRemoteApi =
-      Boolean(import.meta.env.VITE_API_URL) || import.meta.env.BASE_URL === '/';
+    const hasApi = hasRemoteApi();
 
     (async () => {
-      if (!hasRemoteApi) {
+      if (!hasApi) {
         if (!cancelled) {
           setUser(null);
           setAuthReady(true);
