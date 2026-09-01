@@ -16,7 +16,7 @@ export function Header() {
           <img
             src={publicUrl('logo.png')}
             alt="Дукати"
-            className="h-14 w-14 shrink-0 block"
+            className="h-10 w-10 rounded-md object-cover bg-brand shrink-0"
           />
         </Link>
         <div className="flex items-center gap-3">
