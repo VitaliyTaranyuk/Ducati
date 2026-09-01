@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { drinksApi, modifiersApi } from '../lib/api';
@@ -51,6 +51,10 @@ export function DrinkDetailPage() {
     setSelectedMods([]);
     window.clearTimeout(addedTimer.current);
   }, [drink?.id]);
+
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
 
   useEffect(() => () => window.clearTimeout(addedTimer.current), []);
 
