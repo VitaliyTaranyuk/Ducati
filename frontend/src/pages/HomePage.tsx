@@ -3,7 +3,6 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { drinksApi } from '../lib/api';
 import { DrinkCard } from '../components/DrinkCard';
-import { InstallPrompt } from '../components/InstallPrompt';
 import {
   CATEGORY_TABS,
   clearMenuReturn,
@@ -65,7 +64,6 @@ export function HomePage() {
 
   return (
     <div className="pb-8">
-      <InstallPrompt />
       <div className="px-4 mb-4 text-center">
         <h1 className="font-display text-3xl font-bold text-brand-dark">Меню</h1>
         <p className="text-brand/80 text-xs mt-1 italic">Лучший кофе для лучших моментов!</p>

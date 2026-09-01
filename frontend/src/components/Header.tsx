@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { publicUrl } from '../lib/assets';
 import { useCartStore, useOfflineStore } from '../store';
+import { InstallPrompt } from './InstallPrompt';
 
 export function Header() {
   const location = useLocation();
@@ -19,12 +20,13 @@ export function Header() {
             className="h-10 w-10 rounded-md object-cover bg-brand shrink-0"
           />
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {!isOnline && (
             <span className="text-xs bg-brand-accent text-brand-dark px-2 py-1 rounded-full">
               Офлайн{queueCount > 0 ? ` (${queueCount})` : ''}
             </span>
           )}
+          <InstallPrompt />
           {isClientRoute && (
             <Link
               to="/cart"
