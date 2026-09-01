@@ -14,9 +14,9 @@ export function Header() {
       <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
         <Link to="/" className="flex items-center min-w-0" aria-label="Дукати">
           <img
-            src={publicUrl('logo.png')}
+            src={publicUrl('logo.svg')}
             alt="Дукати"
-            className="h-10 w-10 rounded-md object-cover bg-brand shrink-0"
+            className="h-10 w-10 shrink-0 block"
           />
         </Link>
         <div className="flex items-center gap-3">
