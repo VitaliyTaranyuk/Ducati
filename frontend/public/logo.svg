@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Дукати">
+  <rect width="512" height="512" fill="#6D5B5E"/>
+  <rect x="18" y="18" width="476" height="476" fill="none" stroke="#F5EDE3" stroke-width="10"/>
+  <rect x="48" y="48" width="416" height="416" fill="none" stroke="#F5EDE3" stroke-width="8"/>
+  <line x1="48" y1="352" x2="464" y2="352" stroke="#F5EDE3" stroke-width="8"/>
+
+  <!-- cup -->
+  <g fill="none" stroke="#F5EDE3" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M118 168c0-10 14-18 36-18h70c22 0 36 8 36 18v70H118z"/>
+    <path d="M260 198h28c16 0 28 12 28 28s-12 28-28 28h-16"/>
+    <line x1="132" y1="250" x2="248" y2="250"/>
+    <path d="M148 158c4-16 4-28 0-40"/>
+    <path d="M176 156c4-18 4-32 0-46"/>
+    <path d="M204 158c4-16 4-28 0-40"/>
+  </g>
+
+  <!-- cat -->
+  <g fill="#F5EDE3">
+    <path d="M292 128c12-28 36-36 48-10 8-22 36-28 48-4 18 8 22 28 10 48 28 22 40 56 36 88-6 48-40 78-86 78s-80-30-86-78c-4-32 8-66 30-88z"/>
+    <circle cx="348" cy="198" r="16"/>
+    <circle cx="400" cy="198" r="16"/>
+    <path d="M368 222c8 8 20 8 28 0" fill="none" stroke="#6D5B5E" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <g fill="#6D5B5E">
+    <circle cx="348" cy="198" r="7"/>
+    <circle cx="400" cy="198" r="7"/>
+  </g>
+
+  <text x="256" y="430" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="64" font-weight="700" fill="#F5EDE3" letter-spacing="8">ДУКАТИ</text>
+</svg>

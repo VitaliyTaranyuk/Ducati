@@ -1,0 +1,180 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  client
+  barista
+  owner
+}
+
+enum DrinkSize {
+  S
+  M
+  L
+}
+
+enum DrinkCategory {
+  classics
+  special
+  ice
+}
+
+enum OrderStatus {
+  pending
+  preparing
+  ready
+  cancelled
+  completed
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(client)
+  name         String?
+  phone        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  refreshTokens     RefreshToken[]
+  orders            Order[]
+  pushSubscriptions PushSubscription[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Drink {
+  id            String        @id @default(uuid())
+  name          String
+  description   String?
+  imageUrl      String?       @map("image_url")
+  isActive      Boolean       @default(true) @map("is_active")
+  sortOrder     Int           @default(0) @map("sort_order")
+  category      DrinkCategory @default(classics)
+  badge         String?
+  flavorOptions String[]      @default([]) @map("flavor_options")
+  excludedModifierNames String[] @default([]) @map("excluded_modifier_names")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  sizes      DrinkSizeOption[]
+  orderItems OrderItem[]
+
+  @@unique([name, category])
+  @@index([category, sortOrder])
+  @@map("drinks")
+}
+
+model DrinkSizeOption {
+  id       String    @id @default(uuid())
+  drinkId  String    @map("drink_id")
+  size     DrinkSize
+  price    Decimal   @db.Decimal(10, 2)
+  volumeMl Int       @map("volume_ml")
+
+  drink Drink @relation(fields: [drinkId], references: [id], onDelete: Cascade)
+
+  @@unique([drinkId, size])
+  @@map("drink_sizes")
+}
+
+model Modifier {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  price     Decimal  @db.Decimal(10, 2)
+  isActive  Boolean  @default(true) @map("is_active")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  orderItemModifiers OrderItemModifier[]
+
+  @@map("modifiers")
+}
+
+model Order {
+  id            String      @id @default(uuid())
+  customerName  String      @map("customer_name")
+  customerPhone String      @map("customer_phone")
+  comment       String?
+  status        OrderStatus @default(pending)
+  readyAt       DateTime    @map("ready_at")
+  total         Decimal     @db.Decimal(10, 2)
+  userId        String?     @map("user_id")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  user  User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  items OrderItem[]
+
+  @@index([status, readyAt])
+  @@index([customerPhone])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String    @id @default(uuid())
+  orderId   String    @map("order_id")
+  drinkId   String    @map("drink_id")
+  drinkName String    @map("drink_name")
+  size      DrinkSize
+  volumeMl  Int       @map("volume_ml")
+  flavor    String?
+  quantity  Int
+  unitPrice Decimal   @map("unit_price") @db.Decimal(10, 2)
+  subtotal  Decimal   @db.Decimal(10, 2)
+
+  order     Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  drink     Drink                @relation(fields: [drinkId], references: [id], onDelete: Restrict)
+  modifiers OrderItemModifier[]
+
+  @@map("order_items")
+}
+
+model OrderItemModifier {
+  id          String  @id @default(uuid())
+  orderItemId String  @map("order_item_id")
+  modifierId  String  @map("modifier_id")
+  name        String
+  price       Decimal @db.Decimal(10, 2)
+
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  modifier  Modifier  @relation(fields: [modifierId], references: [id], onDelete: Restrict)
+
+  @@unique([orderItemId, modifierId])
+  @@map("order_item_modifiers")
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("push_subscriptions")
+}

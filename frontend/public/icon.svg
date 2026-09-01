@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#6D5B5E"/>
+  <rect x="18" y="18" width="476" height="476" fill="none" stroke="#F5EDE3" stroke-width="10"/>
+  <text x="256" y="300" font-size="160" text-anchor="middle" fill="#F5EDE3">🐾</text>
+</svg>

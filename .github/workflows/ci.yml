@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: coffee
+          POSTGRES_PASSWORD: coffee_secret
+          POSTGRES_DB: ducati_coffee
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install & build backend
+        working-directory: backend
+        run: |
+          npm ci
+          npx prisma generate
+          npm run build
+        env:
+          DATABASE_URL: postgresql://coffee:coffee_secret@localhost:5432/ducati_coffee
+          JWT_ACCESS_SECRET: ci-access-secret-min-32-characters-long
+          JWT_REFRESH_SECRET: ci-refresh-secret-min-32-characters-long
+          CSRF_SECRET: ci-csrf-secret-min-32-characters-long!!
+
+      - name: Run migrations
+        working-directory: backend
+        run: npx prisma db push
+        env:
+          DATABASE_URL: postgresql://coffee:coffee_secret@localhost:5432/ducati_coffee
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install & build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Lighthouse CI (PWA audit)
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          urls: |
+            http://localhost:4173
+          uploadArtifacts: false
+          temporaryPublicStorage: true
+          configPath: ./frontend/lighthouserc.json
+        continue-on-error: true
+
+      - name: Preview server for Lighthouse
+        working-directory: frontend
+        run: |
+          npm run preview &
+          sleep 3
