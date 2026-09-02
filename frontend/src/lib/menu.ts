@@ -1,16 +1,33 @@
-import type { CartItem, CartModifier, DrinkCategory, DrinkSize, DrinkSizeOption } from '../types';
+import type {
+  CartItem,
+  CartModifier,
+  Drink,
+  DrinkCategory,
+  DrinkSize,
+  DrinkSizeOption,
+  FlavorPrices,
+} from '../types';
 
-export const CATEGORY_TABS: { id: DrinkCategory; label: string }[] = [
+/** Customer menu tabs. Former «Спешл» drinks live in Классика. */
+export type MenuTab = 'classics' | 'ice';
+
+export const CATEGORY_TABS: { id: MenuTab; label: string }[] = [
   { id: 'classics', label: 'Классика' },
-  { id: 'special', label: 'Спешл' },
   { id: 'ice', label: 'Айс' },
 ];
 
 export const CATEGORY_LABEL: Record<DrinkCategory, string> = {
   classics: 'Классика',
-  special: 'Спешл',
+  special: 'Классика',
   ice: 'Айс',
 };
+
+export const ALT_MILK_MODIFIER_NAME = 'Альтернативное молоко';
+
+/** Hot drinks (including former specials) vs ice. */
+export function menuTabFor(category: string | null | undefined): MenuTab {
+  return category === 'ice' ? 'ice' : 'classics';
+}
 
 export const FALLBACK_VOLUME: Record<DrinkSize, number> = {
   S: 250,
@@ -40,6 +57,45 @@ export function defaultDrinkSize(
 }
 
 export const SYRUP_MODIFIER_NAME = 'Сироп';
+
+export function parseFlavorPrices(value: unknown): FlavorPrices {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const out: FlavorPrices = {};
+  for (const [flavor, sizes] of Object.entries(value as Record<string, unknown>)) {
+    if (!sizes || typeof sizes !== 'object' || Array.isArray(sizes)) continue;
+    const row: Partial<Record<DrinkSize, number>> = {};
+    for (const size of ['S', 'M', 'L'] as const) {
+      const n = (sizes as Record<string, unknown>)[size];
+      if (typeof n === 'number' && n > 0) row[size] = n;
+    }
+    if (Object.keys(row).length) out[flavor] = row;
+  }
+  return out;
+}
+
+export function hasPricedFlavors(drink: Pick<Drink, 'flavorPrices'>): boolean {
+  return Object.keys(drink.flavorPrices ?? {}).length > 0;
+}
+
+export function drinkSizePrice(
+  drink: Pick<Drink, 'sizes' | 'flavorPrices'>,
+  size: DrinkSize,
+  flavor?: string | null,
+): number {
+  const override = flavor ? drink.flavorPrices?.[flavor]?.[size] : undefined;
+  if (typeof override === 'number') return override;
+  return drink.sizes.find((s) => s.size === size)?.price ?? 0;
+}
+
+export function drinkMinPrice(drink: Pick<Drink, 'sizes' | 'flavorPrices'>): number {
+  const nums = drink.sizes.map((s) => s.price);
+  for (const sizes of Object.values(drink.flavorPrices ?? {})) {
+    for (const p of Object.values(sizes ?? {})) {
+      if (typeof p === 'number') nums.push(p);
+    }
+  }
+  return nums.length ? Math.min(...nums) : 0;
+}
 
 export function cartLineKey(item: {
   drinkId: string;
@@ -80,7 +136,8 @@ export function formatItemExtras(item: {
 const MENU_RETURN_KEY = 'ducati-menu-return';
 
 export function parseDrinkCategory(value: string | null | undefined): DrinkCategory | null {
-  if (value === 'classics' || value === 'special' || value === 'ice') return value;
+  if (value === 'ice') return 'ice';
+  if (value === 'classics' || value === 'special') return 'classics';
   return null;
 }
 
@@ -95,7 +152,7 @@ export function drinkIdFromHash(hash: string): string | null {
 }
 
 export function drinkMenuPath(drink: { id: string; category?: string | null }): string {
-  const category = parseDrinkCategory(drink.category) ?? 'classics';
+  const category = menuTabFor(drink.category);
   const query = category === 'classics' ? '' : `?category=${category}`;
   return `/${query}#${drinkAnchorId(drink.id)}`;
 }

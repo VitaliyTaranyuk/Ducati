@@ -7,10 +7,12 @@ type SizeRow = { size: DrinkSize; price: number; volumeMl: number };
 
 type DrinkSeed = {
   name: string;
+  formerNames?: string[];
   description: string;
   category: DrinkCategory;
   badge?: string;
   flavorOptions?: string[];
+  flavorPrices?: Record<string, { S?: number; M?: number; L?: number }>;
   excludedModifierNames?: string[];
   sizes: SizeRow[];
   imageUrl: string;
@@ -34,24 +36,43 @@ function sml(prices: { s?: number; m?: number; l?: number }): SizeRow[] {
 const MENU: DrinkSeed[] = [
   {
     name: 'Капучино',
-    description: 'Классический капучино на эспрессо и молоке',
+    description: 'Классический капучино или капучино крем',
     category: 'classics',
     imageUrl: '/drinks/cappuccino.jpg',
+    flavorOptions: ['Классический', 'Капучино крем'],
+    flavorPrices: {
+      Классический: { S: 140, M: 200, L: 270 },
+      'Капучино крем': { S: 170, M: 250, L: 290 },
+    },
     sizes: sml({ s: 140, m: 200, l: 270 }),
   },
   {
-    name: 'Раф / Капучино крем',
-    description: 'Сливочный раф или капучино крем — выберите вариант',
+    name: 'Раф',
+    formerNames: ['Раф / Капучино крем'],
+    description: 'Сливочный раф на эспрессо и сливках. Классика или авторский вкус',
     category: 'classics',
     imageUrl: '/drinks/raf.jpg',
-    flavorOptions: ['Раф', 'Капучино крем'],
+    flavorOptions: ['Классика', 'Халва', 'Цитрус', 'Арахис', 'Медовик'],
+    flavorPrices: {
+      Классика: { S: 170, M: 250, L: 290 },
+      Халва: { S: 200, M: 270, L: 320 },
+      Цитрус: { S: 200, M: 270, L: 320 },
+      Арахис: { S: 200, M: 270, L: 320 },
+      Медовик: { S: 200, M: 270, L: 320 },
+    },
     sizes: sml({ s: 170, m: 250, l: 290 }),
   },
   {
     name: 'Латте',
-    description: 'Мягкий латте с бархатистым молоком',
+    description: 'Классический латте или сезонный — тыква и орхидея',
     category: 'classics',
     imageUrl: '/drinks/latte.jpg',
+    flavorOptions: ['Классический', 'Тыква', 'Орхидея'],
+    flavorPrices: {
+      Классический: { S: 140, M: 200, L: 270 },
+      Тыква: { S: 190, M: 250, L: 290 },
+      Орхидея: { S: 190, M: 250, L: 290 },
+    },
     sizes: sml({ s: 140, m: 200, l: 270 }),
   },
   {
@@ -76,32 +97,16 @@ const MENU: DrinkSeed[] = [
     sizes: [{ size: 'S', price: 120, volumeMl: 36 }],
   },
   {
-    name: 'Латте тыква / орхидея',
-    description: 'Сезонный латте — тыква или орхидея',
-    category: 'special',
-    imageUrl: '/drinks/latte-pumpkin.jpg',
-    flavorOptions: ['Тыква', 'Орхидея'],
-    sizes: sml({ s: 190, m: 250, l: 290 }),
-  },
-  {
     name: 'Матча GREEN',
     description: 'Японская матча на молоке',
-    category: 'special',
+    category: 'classics',
     imageUrl: '/drinks/matcha.jpg',
     sizes: sml({ s: 190, m: 250, l: 290 }),
   },
   {
-    name: 'Раф Халва / Цитрус / Арахис / Медовик',
-    description: 'Авторский раф — выберите вкус',
-    category: 'special',
-    imageUrl: '/drinks/raf-halva.jpg',
-    flavorOptions: ['Халва', 'Цитрус', 'Арахис', 'Медовик'],
-    sizes: sml({ s: 200, m: 270, l: 320 }),
-  },
-  {
     name: 'Сырный раф',
     description: 'Раф с сырным кремом',
-    category: 'special',
+    category: 'classics',
     imageUrl: '/drinks/cheese-raf.jpg',
     badge: 'NEW',
     sizes: sml({ s: 230, m: 300, l: 350 }),
@@ -109,7 +114,7 @@ const MENU: DrinkSeed[] = [
   {
     name: 'Горячий шоколад / Какао',
     description: 'Густой горячий шоколад или классическое какао',
-    category: 'special',
+    category: 'classics',
     imageUrl: '/drinks/hot-chocolate.jpg',
     flavorOptions: ['Горячий шоколад', 'Какао'],
     sizes: sml({ s: 190, m: 260, l: 310 }),
@@ -117,7 +122,7 @@ const MENU: DrinkSeed[] = [
   {
     name: 'Чай',
     description: 'Яркий аромат, мягкая терпкость, чистое послевкусие',
-    category: 'special',
+    category: 'classics',
     imageUrl: '/drinks/tea.jpg',
     flavorOptions: ['Персик-маракуйя', 'Цитрус', 'Черника', 'Earl Grey', 'Клубника'],
     excludedModifierNames: ['Альтернативное молоко'],
@@ -152,18 +157,24 @@ const MODIFIERS = [
 ];
 
 async function upsertDrink(seed: DrinkSeed, sortOrder: number) {
-  const existing = await prisma.drink.findUnique({
-    where: { name_category: { name: seed.name, category: seed.category } },
-  });
+  const namesToFind = [seed.name, ...(seed.formerNames ?? [])];
+  let existing = null;
+  for (const name of namesToFind) {
+    existing = await prisma.drink.findFirst({ where: { name } });
+    if (existing) break;
+  }
 
   const data = {
+    name: seed.name,
     description: seed.description,
+    category: seed.category,
     imageUrl:
       existing && !isManagedMenuImage(existing.imageUrl) ? existing.imageUrl : seed.imageUrl,
     isActive: true,
     sortOrder,
     badge: seed.badge ?? null,
     flavorOptions: seed.flavorOptions ?? [],
+    flavorPrices: seed.flavorPrices ?? {},
     excludedModifierNames: seed.excludedModifierNames ?? [],
   };
 

@@ -74,6 +74,7 @@ model Drink {
   category      DrinkCategory @default(classics)
   badge         String?
   flavorOptions String[]      @default([]) @map("flavor_options")
+  flavorPrices  Json          @default("{}") @map("flavor_prices")
   excludedModifierNames String[] @default([]) @map("excluded_modifier_names")
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")

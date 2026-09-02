@@ -22,3 +22,34 @@
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom);
 }
+
+.seg-slide {
+  --n: 3;
+  --i: 0;
+  --pad-x: 3px;
+  position: relative;
+  background: rgb(60 48 40 / 0.08);
+  border-radius: 14px;
+  padding: 3px var(--pad-x);
+}
+
+.seg-slide .seg-knob {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: var(--pad-x);
+  width: calc((100% - (2 * var(--pad-x))) / var(--n));
+  background: #faf9f6;
+  border-radius: 11px;
+  box-shadow: 0 1px 4px rgb(60 48 40 / 0.12);
+  transform: translateX(calc(var(--i) * 100%));
+  transition: transform 0.34s cubic-bezier(0.32, 0.72, 0.24, 1);
+  pointer-events: none;
+}
+
+.seg-slide .seg-slots {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+}

@@ -2,11 +2,11 @@ import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, drinksApi, modifiersApi, statsApi } from '../lib/api';
 import { PushOptIn } from '../components/PushOptIn';
-import { CATEGORY_LABEL, CATEGORY_TABS, formatVolume } from '../lib/menu';
+import { CATEGORY_LABEL, CATEGORY_TABS, formatVolume, menuTabFor, type MenuTab } from '../lib/menu';
 import type { DrinkCategory, DrinkSize, Modifier } from '../types';
 
 type OwnerTab = 'menu' | 'modifiers' | 'stats';
-type CategoryFilter = DrinkCategory | 'all';
+type CategoryFilter = MenuTab | 'all';
 
 type DrinkDraft = {
   id?: string;
@@ -48,7 +48,7 @@ export function OwnerPage() {
   const filteredDrinks = useMemo(() => {
     const drinks = drinksData?.drinks ?? [];
     if (categoryFilter === 'all') return drinks;
-    return drinks.filter((d) => d.category === categoryFilter);
+    return drinks.filter((d) => menuTabFor(d.category) === categoryFilter);
   }, [drinksData?.drinks, categoryFilter]);
 
   const saveDrink = async () => {

@@ -10,6 +10,9 @@ export interface DrinkSizeOption {
   volumeMl: number;
 }
 
+/** Optional per-flavor overrides of size prices. Missing flavors use `sizes`. */
+export type FlavorPrices = Partial<Record<string, Partial<Record<DrinkSize, number>>>>;
+
 export interface Drink {
   id: string;
   name: string;
@@ -20,6 +23,7 @@ export interface Drink {
   category: DrinkCategory;
   badge: string | null;
   flavorOptions: string[];
+  flavorPrices?: FlavorPrices;
   excludedModifierNames?: string[];
   sizes: DrinkSizeOption[];
 }

@@ -75,7 +75,7 @@ id UUID PK, user_id FK, endpoint UNIQUE, p256dh, auth, created_at
 - `GET /api/auth/me` — текущий пользователь
 
 ### Drinks (public read)
-- `GET /api/drinks` — список активных напитков (`?category=classics|special|ice`, поля `category`, `badge`, `flavorOptions`, `grouped`)
+- `GET /api/drinks` — список активных напитков (`?category=classics|special|ice`; в UI спешл сведён в классику, поля `category`, `badge`, `flavorOptions`, `grouped`)
 - `GET /api/drinks/:id`
 - `POST /api/drinks` — owner
 - `PUT /api/drinks/:id` — owner

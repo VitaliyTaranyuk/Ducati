@@ -8,15 +8,16 @@ import {
   clearMenuReturn,
   drinkAnchorId,
   drinkIdFromHash,
+  menuTabFor,
   parseDrinkCategory,
   readMenuReturn,
 } from '../lib/menu';
-import type { DrinkCategory } from '../types';
+import type { MenuTab } from '../lib/menu';
 
 export function HomePage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [category, setCategory] = useState<DrinkCategory>(
-    () => parseDrinkCategory(searchParams.get('category')) ?? 'classics',
+  const [category, setCategory] = useState<MenuTab>(
+    () => menuTabFor(parseDrinkCategory(searchParams.get('category'))),
   );
   const restored = useRef(false);
   const { data, isLoading, error } = useQuery({
@@ -26,7 +27,7 @@ export function HomePage() {
   });
 
   const visible = useMemo(
-    () => (data?.drinks ?? []).filter((d) => (d.category ?? 'classics') === category),
+    () => (data?.drinks ?? []).filter((d) => menuTabFor(d.category) === category),
     [data?.drinks, category],
   );
 
@@ -35,13 +36,14 @@ export function HomePage() {
 
     const hashId = drinkIdFromHash(window.location.hash);
     const stored = readMenuReturn();
-    const drinkId = hashId ?? stored?.drinkId;
-    const listed = drinkId ? data.drinks.find((d) => d.id === drinkId) : undefined;
-    const nextCategory =
-      listed?.category ??
-      parseDrinkCategory(searchParams.get('category')) ??
-      stored?.category ??
-      category;
+    const urlCategory = parseDrinkCategory(searchParams.get('category'));
+    const listedFromHash = hashId
+      ? data.drinks.find((d) => d.id === hashId)
+      : undefined;
+
+    const nextCategory = menuTabFor(
+      listedFromHash?.category ?? urlCategory ?? stored?.category ?? category,
+    );
 
     if (nextCategory !== category) {
       setCategory(nextCategory);
@@ -49,14 +51,21 @@ export function HomePage() {
     }
 
     restored.current = true;
+    const drinkId = hashId ?? stored?.drinkId;
     if (!drinkId) return;
+
+    const listed = data.drinks.find((d) => d.id === drinkId);
+    if (listed && menuTabFor(listed.category) !== category) {
+      clearMenuReturn();
+      return;
+    }
 
     const node = document.getElementById(drinkAnchorId(drinkId));
     node?.scrollIntoView({ block: 'center', behavior: 'auto' });
     clearMenuReturn();
   }, [category, data, searchParams, visible.length]);
 
-  const selectCategory = (id: DrinkCategory) => {
+  const selectCategory = (id: MenuTab) => {
     restored.current = true;
     setCategory(id);
     setSearchParams(id === 'classics' ? {} : { category: id }, { replace: true });
@@ -73,6 +82,7 @@ export function HomePage() {
           <button
             key={tab.id}
             type="button"
+            data-testid={`category-tab-${tab.id}`}
             onClick={() => selectCategory(tab.id)}
             className={`flex-1 py-2.5 rounded-2xl text-sm font-medium transition-colors ${
               category === tab.id

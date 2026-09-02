@@ -16,6 +16,7 @@ import {
 } from '../middleware/auth.js';
 import { sendPushToBaristas } from '../services/push.js';
 import { isSyrupName, SYRUP_MODIFIER_NAME } from '../lib/syrups.js';
+import { flavorSizePrice } from '../lib/flavorPrices.js';
 import type { DrinkSize, OrderStatus } from '@prisma/client';
 
 const router = Router();
@@ -156,7 +157,7 @@ router.post('/', optionalAuth, validateBody(createOrderSchema), async (req: Auth
     if (syrup && drink.category !== 'ice') {
       extras += syrupCharge;
     }
-    const unitPrice = Number(sizeOption.price);
+    const unitPrice = flavorSizePrice(drink.flavorPrices, item.flavor, item.size) ?? Number(sizeOption.price);
     const subtotal = (unitPrice + extras) * item.quantity;
     total += subtotal;
     orderItems.push({

@@ -1,5 +1,6 @@
-import { FALLBACK_DRINKS, FALLBACK_MODIFIERS } from '../data/catalog';
-import type { DrinkCategory } from '../types';
+import { FALLBACK_DRINKS, FALLBACK_MODIFIERS, resolveDrinkId } from '../data/catalog';
+import { menuTabFor, parseFlavorPrices } from './menu';
+import type { Drink, DrinkCategory } from '../types';
 
 const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
 
@@ -12,11 +13,16 @@ function useBundledCatalog(): boolean {
   return !hasRemoteApi();
 }
 
+function withFlavorPrices(drink: Drink): Drink {
+  return { ...drink, flavorPrices: parseFlavorPrices(drink.flavorPrices) };
+}
+
 function bundledDrinks(category?: DrinkCategory) {
-  const drinks = category
-    ? FALLBACK_DRINKS.filter((d) => d.category === category)
+  const tab = category ? menuTabFor(category) : undefined;
+  const drinks = tab
+    ? FALLBACK_DRINKS.filter((d) => menuTabFor(d.category) === tab)
     : FALLBACK_DRINKS;
-  return { drinks, version: 0 };
+  return { drinks: drinks.map(withFlavorPrices), version: 0 };
 }
 
 let csrfToken: string | null = null;
@@ -118,9 +124,10 @@ export const drinksApi = {
   list: async (category?: DrinkCategory) => {
     if (!useBundledCatalog()) {
       try {
-        return await apiFetch<{ drinks: import('../types').Drink[]; version: number }>(
+        const data = await apiFetch<{ drinks: Drink[]; version: number }>(
           `/drinks${category ? `?category=${category}` : ''}`,
         );
+        return { ...data, drinks: data.drinks.map(withFlavorPrices) };
       } catch {
         /* preview without API, or GitHub Pages */
       }
@@ -128,18 +135,20 @@ export const drinksApi = {
     return bundledDrinks(category);
   },
   get: async (id: string) => {
+    const resolved = resolveDrinkId(id);
     if (!useBundledCatalog()) {
       try {
-        return await apiFetch<{ drink: import('../types').Drink }>(`/drinks/${id}`);
+        const data = await apiFetch<{ drink: Drink }>(`/drinks/${resolved}`);
+        return { drink: withFlavorPrices(data.drink) };
       } catch (err) {
-        const bundled = FALLBACK_DRINKS.find((d) => d.id === id);
-        if (bundled) return { drink: bundled };
+        const bundled = FALLBACK_DRINKS.find((d) => d.id === resolved);
+        if (bundled) return { drink: withFlavorPrices(bundled) };
         throw err;
       }
     }
-    const drink = FALLBACK_DRINKS.find((d) => d.id === id);
+    const drink = FALLBACK_DRINKS.find((d) => d.id === resolved);
     if (!drink) throw new ApiError(404, 'Not found');
-    return { drink };
+    return { drink: withFlavorPrices(drink) };
   },
   adminAll: () => apiFetch<{ drinks: import('../types').Drink[] }>('/drinks/admin/all'),
   create: (data: unknown) =>

@@ -6,3 +6,6 @@ dist/
 .DS_Store
 nginx/ssl/*.pem
 !nginx/ssl/.gitkeep
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/

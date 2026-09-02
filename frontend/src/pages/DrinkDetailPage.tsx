@@ -4,18 +4,24 @@ import { useQuery } from '@tanstack/react-query';
 import { drinksApi, modifiersApi } from '../lib/api';
 import { useCartStore } from '../store';
 import {
+  ALT_MILK_MODIFIER_NAME,
   defaultDrinkSize,
   drinkMenuPath,
+  drinkSizePrice,
   formatPrice,
   formatVolume,
+  hasPricedFlavors,
   lineExtras,
   saveMenuReturn,
   SYRUP_MODIFIER_NAME,
 } from '../lib/menu';
+import { drinkChips } from '../lib/ingredients';
+import { flavorImageUrl } from '../data/flavors';
 import { readStoredReadyAt } from '../lib/readyAt';
-import { findFlavor } from '../data/flavors';
 import { ReadyTimePicker } from '../components/ReadyTimePicker';
-import { SyrupModal } from '../components/SyrupModal';
+import { FlavorPhotoTiles } from '../components/FlavorPhotoTiles';
+import { SegmentSlider } from '../components/SegmentSlider';
+import { SyrupStrip } from '../components/SyrupStrip';
 import type { DrinkSize, Modifier } from '../types';
 
 export function DrinkDetailPage() {
@@ -39,14 +45,18 @@ export function DrinkDetailPage() {
     (m) => !(drink?.excludedModifierNames ?? []).includes(m.name),
   );
   const syrupMod = allModifiers.find((m) => m.name === SYRUP_MODIFIER_NAME);
-  const extraModifiers = allModifiers.filter((m) => m.name !== SYRUP_MODIFIER_NAME);
+  const milkMod = allModifiers.find((m) => m.name === ALT_MILK_MODIFIER_NAME);
+  const extraModifiers = allModifiers.filter(
+    (m) => m.name !== SYRUP_MODIFIER_NAME && m.name !== ALT_MILK_MODIFIER_NAME,
+  );
   const syrupIncluded = drink?.category === 'ice';
   const showSyrup = Boolean(syrupMod);
+  const showMilk = Boolean(milkMod);
 
   const [size, setSize] = useState<DrinkSize | null>(null);
   const [flavor, setFlavor] = useState('');
   const [syrup, setSyrup] = useState<string | null>(null);
-  const [syrupOpen, setSyrupOpen] = useState(false);
+  const [plantMilk, setPlantMilk] = useState(false);
   const [selectedMods, setSelectedMods] = useState<string[]>([]);
   const [imgFailed, setImgFailed] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
@@ -63,12 +73,17 @@ export function DrinkDetailPage() {
     setSize(null);
     setImgFailed(false);
     setJustAdded(false);
-    setFlavor('');
+    const options = drink?.category === 'ice' ? [] : (drink?.flavorOptions ?? []);
+    setFlavor(options[0] ?? '');
     setSyrup(null);
-    setSyrupOpen(false);
+    setPlantMilk(false);
     setSelectedMods([]);
     window.clearTimeout(addedTimer.current);
   }, [drink?.id]);
+
+  useEffect(() => {
+    setImgFailed(false);
+  }, [flavor]);
 
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
@@ -98,14 +113,20 @@ export function DrinkDetailPage() {
     );
   }
 
+  const milkCharge = plantMilk && milkMod ? milkMod.price : 0;
   const syrupCharge = syrup && syrupMod && !syrupIncluded ? syrupMod.price : 0;
   const extras =
     lineExtras(
       chosenModifiers.map((m) => ({ modifierId: m.id, name: m.name, price: m.price })),
-    ) + syrupCharge;
-  const price = (selectedSize?.price ?? 0) + extras;
+    ) +
+    syrupCharge +
+    milkCharge;
+  const sizePrice = activeSize ? drinkSizePrice(drink, activeSize, flavor) : 0;
+  const price = sizePrice + extras;
   const needsFlavor = variantOptions.length > 0;
   const canAdd = !!activeSize && selectedSize && (!needsFlavor || !!flavor);
+  const heroUrl = (flavor && flavorImageUrl(flavor, drink.id)) || drink.imageUrl;
+  const chips = drinkChips(drink, flavor, plantMilk);
 
   const toggleMod = (mod: Modifier) => {
     setSelectedMods((prev) =>
@@ -119,13 +140,16 @@ export function DrinkDetailPage() {
     if (syrup && syrupMod && !syrupIncluded) {
       modsForCart.push(syrupMod);
     }
+    if (plantMilk && milkMod) {
+      modsForCart.push(milkMod);
+    }
     addItem({
       drinkId: drink.id,
       drinkName: drink.name,
       size: activeSize,
       volumeMl: selectedSize.volumeMl,
       quantity: 1,
-      unitPrice: selectedSize.price,
+      unitPrice: sizePrice,
       flavor: flavor || undefined,
       syrup: syrup || undefined,
       modifiers: modsForCart.map((m) => ({
@@ -140,14 +164,19 @@ export function DrinkDetailPage() {
     addedTimer.current = window.setTimeout(() => setJustAdded(false), 1800);
   };
 
-  const syrupPriceLabel = syrupIncluded ? 'входит в цену' : `+${syrupMod?.price ?? 40} ₽`;
+  const volumeOptions = drink.sizes.map((s) => ({
+    value: s.size,
+    label: formatVolume(s.volumeMl),
+    sublabel: formatPrice(drinkSizePrice(drink, s.size, flavor)),
+  }));
 
   return (
     <div className="flex min-h-[calc(100dvh-4.25rem)] flex-col">
       <div className="w-full aspect-[16/9] bg-brand-accent flex items-center justify-center relative">
-        {drink.imageUrl && !imgFailed ? (
+        {heroUrl && !imgFailed ? (
           <img
-            src={drink.imageUrl}
+            key={heroUrl}
+            src={heroUrl}
             alt={drink.name}
             className="w-full h-full object-cover"
             onError={() => setImgFailed(true)}
@@ -174,123 +203,111 @@ export function DrinkDetailPage() {
         <h1 className="font-display text-2xl font-bold text-brand-dark">{drink.name}</h1>
         {drink.description && <p className="text-brand-dark/60 mt-2">{drink.description}</p>}
 
-        <div className="mt-6">
-          <label className="text-sm font-medium text-brand-dark">Объём</label>
-          <div
-            className={`grid gap-2 mt-2 ${
-              drink.sizes.length === 1
-                ? 'grid-cols-1'
-                : drink.sizes.length === 2
-                  ? 'grid-cols-2'
-                  : 'grid-cols-3'
-            }`}
-          >
-            {drink.sizes.map((s) => {
-              const selected = activeSize === s.size;
-              return (
-                <button
-                  key={s.size}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => setSize(s.size)}
-                  className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-xl border-2 font-sans text-sm leading-snug transition-colors ${
-                    selected
-                      ? 'border-brand bg-brand text-brand-paper'
-                      : 'border-brand-dark/15 text-brand-dark bg-brand-paper'
-                  }`}
-                >
-                  <span className="whitespace-nowrap font-medium">{formatVolume(s.volumeMl)}</span>
-                  <span className="mt-1.5 mb-1.5 block h-px w-7 bg-current opacity-30" aria-hidden />
-                  <span
-                    className={`whitespace-nowrap font-semibold tabular-nums ${selected ? '' : 'text-brand'}`}
-                  >
-                    {formatPrice(s.price)}
-                  </span>
-                </button>
-              );
-            })}
+        {chips.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5" data-testid="ingredient-chips">
+            {chips.map((chip) => (
+              <span
+                key={chip}
+                className="rounded-full bg-brand-accent px-2.5 py-1 text-xs text-brand-dark"
+              >
+                {chip}
+              </span>
+            ))}
           </div>
-        </div>
+        )}
 
         {needsFlavor && (
           <div className="mt-6">
             <p id="flavor-label" className="text-sm font-medium text-brand-dark">
-              {drink.name === 'Чай' ? 'Вкус' : 'Вариант'}
+              Вкусы
             </p>
-            <div
-              role="group"
-              aria-labelledby="flavor-label"
-              className={`grid gap-2 mt-2 ${variantOptions.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}
-            >
-              {variantOptions.map((opt) => {
-                const visual = findFlavor(opt);
-                const selected = flavor === opt;
-                return (
-                  <button
-                    key={opt}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => setFlavor(opt)}
-                    className={`flex min-h-16 items-center gap-2.5 rounded-xl border-2 py-2 pl-2 pr-2.5 text-left font-sans font-semibold text-sm leading-snug break-words transition-colors ${
-                      selected
-                        ? 'border-brand bg-brand text-brand-paper'
-                        : 'border-brand-dark/15 text-brand-dark bg-brand-paper'
-                    }`}
-                  >
-                    {visual ? (
-                      <img
-                        src={visual.imageUrl}
-                        alt=""
-                        className="h-12 w-12 shrink-0 rounded-[10px] object-cover bg-brand-accent"
-                      />
-                    ) : (
-                      <span
-                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[10px] bg-brand-accent text-brand-dark/35"
-                        aria-hidden
-                      >
-                        —
-                      </span>
-                    )}
-                    <span>{opt}</span>
-                  </button>
-                );
-              })}
+            <FlavorPhotoTiles
+              drinkId={drink.id}
+              options={variantOptions}
+              value={flavor}
+              onSelect={setFlavor}
+              priceFor={
+                hasPricedFlavors(drink) && activeSize
+                  ? (name) => drinkSizePrice(drink, activeSize, name)
+                  : undefined
+              }
+            />
+          </div>
+        )}
+
+        <div className="mt-6">
+          <p id="volume-label" className="text-sm font-medium text-brand-dark">
+            Объём
+          </p>
+          <div className="mt-2">
+            <SegmentSlider
+              labelledBy="volume-label"
+              testId="volume-slider"
+              options={volumeOptions}
+              value={activeSize ?? volumeOptions[0]?.value}
+              onChange={setSize}
+            />
+          </div>
+        </div>
+
+        {showMilk && milkMod && (
+          <div className="mt-6">
+            <p id="milk-label" className="text-sm font-medium text-brand-dark">
+              Молоко
+            </p>
+            <div className="mt-2">
+              <SegmentSlider
+                labelledBy="milk-label"
+                testId="milk-slider"
+                options={[
+                  { value: 'dairy', label: 'Обычное', sublabel: 'в цене' },
+                  {
+                    value: 'plant',
+                    label: 'Растительное',
+                    sublabel: `+${milkMod.price} ₽`,
+                  },
+                ]}
+                value={plantMilk ? 'plant' : 'dairy'}
+                onChange={(next) => setPlantMilk(next === 'plant')}
+              />
             </div>
           </div>
         )}
 
         {(showSyrup || extraModifiers.length > 0) && (
           <div className="mt-6">
-            <p className="text-sm font-medium text-brand-dark">Дополнительно</p>
-            <div className="mt-2 space-y-2">
-              {showSyrup && (
-                <button
-                  type="button"
-                  onClick={() => setSyrupOpen(true)}
-                  className="flex w-full items-center gap-3 p-3 bg-brand-paper rounded-xl border border-brand-dark/10 text-left"
-                >
-                  <span className="flex-1">{syrup ?? 'Добавить сироп'}</span>
-                  {syrupPriceLabel ? (
-                    <span className="font-sans font-semibold text-brand shrink-0">{syrupPriceLabel}</span>
-                  ) : null}
-                </button>
-              )}
-              {extraModifiers.map((mod) => (
-                <label
-                  key={mod.id}
-                  className="flex items-center gap-3 p-3 bg-brand-paper rounded-xl border border-brand-dark/10"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedMods.includes(mod.id)}
-                    onChange={() => toggleMod(mod)}
-                    className="w-5 h-5 accent-brand"
-                  />
-                  <span className="flex-1">{mod.name}</span>
-                  <span className="font-sans font-semibold text-brand">+{mod.price} ₽</span>
-                </label>
-              ))}
-            </div>
+            <p className="text-sm font-medium text-brand-dark">
+              {showSyrup ? 'Сироп' : 'Дополнительно'}
+            </p>
+            {showSyrup && (
+              <div className="mt-2">
+                <SyrupStrip
+                  selectedName={syrup}
+                  includedInPrice={syrupIncluded}
+                  price={syrupMod?.price ?? 40}
+                  onSelect={setSyrup}
+                />
+              </div>
+            )}
+            {extraModifiers.length > 0 && (
+              <div className="mt-2 space-y-2">
+                {extraModifiers.map((mod) => (
+                  <label
+                    key={mod.id}
+                    className="flex items-center gap-3 p-3 bg-brand-paper rounded-xl border border-brand-dark/10"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedMods.includes(mod.id)}
+                      onChange={() => toggleMod(mod)}
+                      className="w-5 h-5 accent-brand"
+                    />
+                    <span className="flex-1">{mod.name}</span>
+                    <span className="font-sans font-semibold text-brand">+{mod.price} ₽</span>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -298,30 +315,36 @@ export function DrinkDetailPage() {
           <ReadyTimePicker value={readyAt} onChange={setReadyAt} />
         </div>
 
-        {canAdd ? (
-          <div className="sticky bottom-0 z-20 mt-auto -mx-4 bg-transparent px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
-            <button
-              type="button"
-              onClick={handleAdd}
-              aria-live="polite"
-              className="w-full rounded-2xl border border-[rgba(60,48,40,0.12)] bg-white/[0.18] py-4 text-lg font-semibold text-brand backdrop-blur [text-shadow:0_0_10px_#FAF7F2,0_1px_0_#FAF7F2]"
-            >
-              {justAdded ? 'Добавлено' : `В корзину · ${price} ₽`}
-            </button>
-          </div>
-        ) : null}
+        <div
+          className={
+            canAdd
+              ? 'sticky bottom-0 z-20 mt-auto -mx-4 bg-transparent px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]'
+              : 'mt-8 -mx-4 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]'
+          }
+        >
+          <button
+            type="button"
+            data-testid="add-to-cart"
+            disabled={!canAdd}
+            onClick={handleAdd}
+            aria-live="polite"
+            aria-disabled={!canAdd}
+            className={
+              canAdd
+                ? 'w-full rounded-2xl border border-[rgba(60,48,40,0.12)] bg-white/[0.18] py-4 text-lg font-semibold text-brand backdrop-blur [text-shadow:0_0_10px_#FAF7F2,0_1px_0_#FAF7F2]'
+                : 'w-full cursor-not-allowed rounded-2xl border border-brand-dark/10 bg-brand-paper/70 py-4 text-lg font-semibold text-brand-dark/35'
+            }
+          >
+            {justAdded
+              ? 'Добавлено'
+              : canAdd
+                ? `В корзину · ${price} ₽`
+                : needsFlavor
+                  ? 'В корзину · выберите вкус'
+                  : 'В корзину'}
+          </button>
+        </div>
       </div>
-
-      {showSyrup && syrupMod && (
-        <SyrupModal
-          open={syrupOpen}
-          selectedName={syrup}
-          includedInPrice={syrupIncluded}
-          price={syrupMod.price}
-          onClose={() => setSyrupOpen(false)}
-          onSelect={setSyrup}
-        />
-      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { DrinkCategory } from '@prisma/client';
 import { isPrismaUniqueViolation, prisma } from '../db/prisma.js';
 import { createDrinkSchema, drinksQuerySchema, updateDrinkSchema } from '../schemas/index.js';
+import { parseFlavorPrices } from '../lib/flavorPrices.js';
 import { validateBody, validateQuery } from '../middleware/validate.js';
 import {
   authenticate,
@@ -21,11 +22,13 @@ function serializeDrink(drink: {
   category: DrinkCategory;
   badge: string | null;
   flavorOptions: string[];
+  flavorPrices?: unknown;
   excludedModifierNames: string[];
   sizes: { id: string; size: string; price: unknown; volumeMl: number }[];
 }) {
   return {
     ...drink,
+    flavorPrices: parseFlavorPrices(drink.flavorPrices),
     sizes: drink.sizes.map((s) => ({
       ...s,
       price: Number(s.price),

@@ -42,6 +42,16 @@ export const createDrinkSchema = z.object({
   category: drinkCategorySchema.optional(),
   badge: z.string().max(20).nullable().optional(),
   flavorOptions: z.array(z.string().min(1).max(80)).max(20).optional(),
+  flavorPrices: z
+    .record(
+      z.string().min(1).max(80),
+      z.object({
+        S: z.number().positive().optional(),
+        M: z.number().positive().optional(),
+        L: z.number().positive().optional(),
+      }),
+    )
+    .optional(),
   excludedModifierNames: z.array(z.string().min(1).max(80)).max(20).optional(),
   sizes: z.array(drinkSizeSchema).min(1),
 });

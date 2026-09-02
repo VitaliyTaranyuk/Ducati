@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Drink } from '../types';
-import { drinkAnchorId, saveMenuReturn } from '../lib/menu';
+import { drinkAnchorId, drinkMinPrice, saveMenuReturn } from '../lib/menu';
 
 interface Props {
   drink: Drink;
 }
 
 export function DrinkCard({ drink }: Props) {
-  const minPrice = Math.min(...drink.sizes.map((s) => s.price));
+  const minPrice = drinkMinPrice(drink);
   const [imgFailed, setImgFailed] = useState(false);
   const showPhoto = Boolean(drink.imageUrl) && !imgFailed;
 
