@@ -33,6 +33,7 @@ export function CheckoutPage() {
         size: i.size,
         quantity: i.quantity,
         flavor: i.flavor,
+        syrup: i.syrup,
         modifiers: i.modifiers.map((m) => ({ modifierId: m.modifierId })),
       })),
     };

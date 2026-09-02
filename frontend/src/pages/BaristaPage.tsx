@@ -73,6 +73,7 @@ export function BaristaPage() {
               {order.items.map((item) => {
                 const extras = [
                   item.flavor,
+                  item.syrup,
                   ...(item.modifiers ?? []).map((m) => m.name),
                 ].filter(Boolean);
                 return (

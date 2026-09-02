@@ -12,15 +12,20 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 bg-brand-paper/95 backdrop-blur border-b border-brand-dark/15 safe-top">
-      <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
-        <Link to="/" className="flex items-center min-w-0" aria-label="Дукати">
-          <img
-            src={publicUrl('logo.png')}
-            alt="Дукати"
-            className="h-10 w-10 rounded-md object-cover bg-brand shrink-0"
-          />
-        </Link>
-        <div className="flex items-center gap-2">
+      <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <Link to="/" className="shrink-0" aria-label="Дукати">
+            <img
+              src={publicUrl('logo.png')}
+              alt="Дукати"
+              className="h-10 w-10 rounded-md object-cover bg-brand"
+            />
+          </Link>
+          <p className="text-brand/80 text-xs italic leading-snug line-clamp-2 min-w-0">
+            Лучший кофе для лучших моментов!
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
           {!isOnline && (
             <span className="text-xs bg-brand-accent text-brand-dark px-2 py-1 rounded-full">
               Офлайн{queueCount > 0 ? ` (${queueCount})` : ''}

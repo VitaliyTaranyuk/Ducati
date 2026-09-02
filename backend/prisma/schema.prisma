@@ -141,6 +141,7 @@ model OrderItem {
   size      DrinkSize
   volumeMl  Int       @map("volume_ml")
   flavor    String?
+  syrup     String?
   quantity  Int
   unitPrice Decimal   @map("unit_price") @db.Decimal(10, 2)
   subtotal  Decimal   @db.Decimal(10, 2)

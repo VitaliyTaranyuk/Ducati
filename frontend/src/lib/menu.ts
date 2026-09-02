@@ -26,17 +26,20 @@ export function formatSizePrice(volumeMl: number, price: number): string {
   return `${volumeMl} мл · ${price} ₽`;
 }
 
+export const SYRUP_MODIFIER_NAME = 'Сироп';
+
 export function cartLineKey(item: {
   drinkId: string;
   size: string;
   flavor?: string | null;
+  syrup?: string | null;
   modifiers?: { modifierId: string }[];
 }): string {
   const mods = (item.modifiers ?? [])
     .map((m) => m.modifierId)
     .sort()
     .join(',');
-  return `${item.drinkId}|${item.size}|${item.flavor ?? ''}|${mods}`;
+  return `${item.drinkId}|${item.size}|${item.flavor ?? ''}|${item.syrup ?? ''}|${mods}`;
 }
 
 export function lineExtras(modifiers: CartModifier[]): number {
@@ -49,11 +52,15 @@ export function lineUnitTotal(item: Pick<CartItem, 'unitPrice' | 'modifiers'>): 
 
 export function formatItemExtras(item: {
   flavor?: string | null;
+  syrup?: string | null;
   modifiers?: { name: string }[];
 }): string | null {
   const parts: string[] = [];
   if (item.flavor) parts.push(item.flavor);
-  for (const m of item.modifiers ?? []) parts.push(m.name);
+  if (item.syrup) parts.push(item.syrup);
+  for (const m of item.modifiers ?? []) {
+    if (m.name !== SYRUP_MODIFIER_NAME) parts.push(m.name);
+  }
   return parts.length ? parts.join(' · ') : null;
 }
 

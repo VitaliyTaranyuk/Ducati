@@ -68,6 +68,7 @@ export const orderItemSchema = z.object({
   size: z.enum(['S', 'M', 'L']),
   quantity: z.number().int().min(1).max(20),
   flavor: z.string().min(1).max(80).optional(),
+  syrup: z.string().min(1).max(80).optional(),
   modifiers: z
     .array(z.object({ modifierId: z.string().uuid() }))
     .max(10)

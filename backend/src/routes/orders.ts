@@ -15,6 +15,7 @@ import {
   type AuthRequest,
 } from '../middleware/auth.js';
 import { sendPushToBaristas } from '../services/push.js';
+import { isSyrupName, SYRUP_MODIFIER_NAME } from '../lib/syrups.js';
 import type { DrinkSize, OrderStatus } from '@prisma/client';
 
 const router = Router();
@@ -37,6 +38,7 @@ function serializeOrder(order: {
     size: DrinkSize;
     volumeMl: number;
     flavor: string | null;
+    syrup: string | null;
     quantity: number;
     unitPrice: unknown;
     subtotal: unknown;
@@ -65,6 +67,7 @@ router.post('/', optionalAuth, validateBody(createOrderSchema), async (req: Auth
       size: DrinkSize;
       quantity: number;
       flavor?: string;
+      syrup?: string;
       modifiers?: { modifierId: string }[];
     }[];
     readyAt: string;
@@ -98,6 +101,10 @@ router.post('/', optionalAuth, validateBody(createOrderSchema), async (req: Auth
 
   const drinkMap = new Map(drinks.map((d) => [d.id, d]));
   const modifierMap = new Map(modifiers.map((m) => [m.id, m]));
+  const syrupCatalog = await prisma.modifier.findFirst({
+    where: { name: SYRUP_MODIFIER_NAME, isActive: true },
+  });
+  const syrupCharge = syrupCatalog ? Number(syrupCatalog.price) : 40;
   let total = 0;
   const orderItems: {
     drinkId: string;
@@ -105,6 +112,7 @@ router.post('/', optionalAuth, validateBody(createOrderSchema), async (req: Auth
     size: DrinkSize;
     volumeMl: number;
     flavor: string | null;
+    syrup: string | null;
     quantity: number;
     unitPrice: number;
     subtotal: number;
@@ -124,6 +132,11 @@ router.post('/', optionalAuth, validateBody(createOrderSchema), async (req: Auth
       }
     }
 
+    let syrup: string | null = item.syrup ?? null;
+    if (syrup && !isSyrupName(syrup)) {
+      return res.status(400).json({ error: `Сироп «${syrup}» недоступен` });
+    }
+
     const uniqueModIds = [...new Set((item.modifiers ?? []).map((m) => m.modifierId))];
     const blocked = new Set(drink.excludedModifierNames ?? []);
     for (const id of uniqueModIds) {
@@ -132,12 +145,17 @@ router.post('/', optionalAuth, validateBody(createOrderSchema), async (req: Auth
         return res.status(400).json({ error: `Доп «${mod.name}» недоступен для ${drink.name}` });
       }
     }
-    const itemMods = uniqueModIds.map((id) => {
-      const mod = modifierMap.get(id)!;
-      return { modifierId: mod.id, name: mod.name, price: Number(mod.price) };
-    });
+    const itemMods = uniqueModIds
+      .map((id) => {
+        const mod = modifierMap.get(id)!;
+        return { modifierId: mod.id, name: mod.name, price: Number(mod.price) };
+      })
+      .filter((m) => m.name !== SYRUP_MODIFIER_NAME);
 
-    const extras = itemMods.reduce((sum, m) => sum + m.price, 0);
+    let extras = itemMods.reduce((sum, m) => sum + m.price, 0);
+    if (syrup && drink.category !== 'ice') {
+      extras += syrupCharge;
+    }
     const unitPrice = Number(sizeOption.price);
     const subtotal = (unitPrice + extras) * item.quantity;
     total += subtotal;
@@ -147,6 +165,7 @@ router.post('/', optionalAuth, validateBody(createOrderSchema), async (req: Auth
       size: item.size,
       volumeMl: sizeOption.volumeMl,
       flavor: item.flavor ?? null,
+      syrup,
       quantity: item.quantity,
       unitPrice,
       subtotal,
@@ -169,6 +188,7 @@ router.post('/', optionalAuth, validateBody(createOrderSchema), async (req: Auth
           size: item.size,
           volumeMl: item.volumeMl,
           flavor: item.flavor,
+          syrup: item.syrup,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           subtotal: item.subtotal,

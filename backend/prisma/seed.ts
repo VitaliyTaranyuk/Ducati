@@ -3,15 +3,6 @@ import { hashPassword } from '../src/services/auth.js';
 
 const prisma = new PrismaClient();
 
-const ICE_SYRUPS = [
-  'Ваниль',
-  'Карамель',
-  'Лесной орех',
-  'Кокос',
-  'Солёная карамель',
-  'Клубника',
-];
-
 type SizeRow = { size: DrinkSize; price: number; volumeMl: number };
 
 type DrinkSeed = {
@@ -144,7 +135,6 @@ const MENU: DrinkSeed[] = [
     description: 'Эспрессо с тоником и льдом. Сироп на выбор',
     category: 'ice',
     imageUrl: '/drinks/espresso-tonic.jpg',
-    flavorOptions: ICE_SYRUPS,
     sizes: [{ size: 'S', price: 250, volumeMl: 400 }],
   },
   {
@@ -152,7 +142,6 @@ const MENU: DrinkSeed[] = [
     description: 'Холодный латте 400 мл. Сироп на выбор',
     category: 'ice',
     imageUrl: '/drinks/iced-latte.jpg',
-    flavorOptions: ICE_SYRUPS,
     sizes: [{ size: 'S', price: 250, volumeMl: 400 }],
   },
 ];

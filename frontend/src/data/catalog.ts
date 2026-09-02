@@ -16,15 +16,6 @@ function sml(drinkId: string, prices: { s?: number; m?: number; l?: number }): D
   return sizes(drinkId, rows);
 }
 
-const ICE_SYRUPS = [
-  'Ваниль',
-  'Карамель',
-  'Лесной орех',
-  'Кокос',
-  'Солёная карамель',
-  'Клубника',
-];
-
 /** Bundled menu for GitHub Pages and local preview without API. */
 export const FALLBACK_MODIFIERS: Modifier[] = [
   { id: 'mod-syrup', name: 'Сироп', price: 40, isActive: true, sortOrder: 1 },
@@ -198,7 +189,7 @@ export const FALLBACK_DRINKS: Drink[] = [
     sortOrder: 13,
     category: 'ice',
     badge: null,
-    flavorOptions: ICE_SYRUPS,
+    flavorOptions: [],
     sizes: sizes('espresso-tonic', [{ size: 'S', price: 250, volumeMl: 400 }]),
   },
   {
@@ -210,7 +201,7 @@ export const FALLBACK_DRINKS: Drink[] = [
     sortOrder: 14,
     category: 'ice',
     badge: null,
-    flavorOptions: ICE_SYRUPS,
+    flavorOptions: [],
     sizes: sizes('iced-latte', [{ size: 'S', price: 250, volumeMl: 400 }]),
   },
 ];

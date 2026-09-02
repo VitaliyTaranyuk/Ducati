@@ -66,7 +66,6 @@ export function HomePage() {
     <div className="pb-8">
       <div className="px-4 mb-4 text-center">
         <h1 className="font-display text-3xl font-bold text-brand-dark">Меню</h1>
-        <p className="text-brand/80 text-xs mt-1 italic">Лучший кофе для лучших моментов!</p>
       </div>
 
       <div className="px-4 mb-5 flex gap-2">

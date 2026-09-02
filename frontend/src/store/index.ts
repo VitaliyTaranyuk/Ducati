@@ -71,6 +71,7 @@ export const useCartStore = create<CartState>()(
               quantity: Number(item.quantity) || 1,
               unitPrice: Number(item.unitPrice) || 0,
               flavor: item.flavor,
+              syrup: item.syrup,
               modifiers: item.modifiers ?? [],
             }),
           ),

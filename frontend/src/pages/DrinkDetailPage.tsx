@@ -3,9 +3,10 @@ import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { drinksApi, modifiersApi } from '../lib/api';
 import { useCartStore } from '../store';
-import { drinkMenuPath, formatSizePrice, lineExtras, saveMenuReturn } from '../lib/menu';
+import { drinkMenuPath, formatSizePrice, lineExtras, saveMenuReturn, SYRUP_MODIFIER_NAME } from '../lib/menu';
 import { readStoredReadyAt } from '../lib/readyAt';
 import { ReadyTimePicker } from '../components/ReadyTimePicker';
+import { SyrupModal } from '../components/SyrupModal';
 import type { DrinkSize, Modifier } from '../types';
 
 export function DrinkDetailPage() {
@@ -25,16 +26,25 @@ export function DrinkDetailPage() {
   });
 
   const drink = data?.drink;
-  const modifiers = (modifiersData?.modifiers ?? []).filter(
+  const allModifiers = (modifiersData?.modifiers ?? []).filter(
     (m) => !(drink?.excludedModifierNames ?? []).includes(m.name),
   );
+  const syrupMod = allModifiers.find((m) => m.name === SYRUP_MODIFIER_NAME);
+  const extraModifiers = allModifiers.filter((m) => m.name !== SYRUP_MODIFIER_NAME);
+  const syrupIncluded = drink?.category === 'ice';
+  const showSyrup = Boolean(syrupMod);
+
   const [size, setSize] = useState<DrinkSize | null>(null);
   const [flavor, setFlavor] = useState('');
+  const [syrup, setSyrup] = useState<string | null>(null);
+  const [syrupOpen, setSyrupOpen] = useState(false);
   const [selectedMods, setSelectedMods] = useState<string[]>([]);
   const [imgFailed, setImgFailed] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
   const addedTimer = useRef<number>();
   const [readyAt, setReadyAt] = useState(readStoredReadyAt);
+
+  const variantOptions = drink?.category === 'ice' ? [] : (drink?.flavorOptions ?? []);
 
   useEffect(() => {
     if (drink?.sizes.length === 1) setSize(drink.sizes[0].size);
@@ -48,6 +58,8 @@ export function DrinkDetailPage() {
     setImgFailed(false);
     setJustAdded(false);
     setFlavor('');
+    setSyrup(null);
+    setSyrupOpen(false);
     setSelectedMods([]);
     window.clearTimeout(addedTimer.current);
   }, [drink?.id]);
@@ -60,8 +72,8 @@ export function DrinkDetailPage() {
 
   const selectedSize = drink?.sizes.find((s) => s.size === size);
   const chosenModifiers = useMemo(
-    () => modifiers.filter((m) => selectedMods.includes(m.id)),
-    [modifiers, selectedMods],
+    () => extraModifiers.filter((m) => selectedMods.includes(m.id)),
+    [extraModifiers, selectedMods],
   );
 
   if (isLoading || !drink) {
@@ -79,11 +91,13 @@ export function DrinkDetailPage() {
     );
   }
 
-  const extras = lineExtras(
-    chosenModifiers.map((m) => ({ modifierId: m.id, name: m.name, price: m.price })),
-  );
+  const syrupCharge = syrup && syrupMod && !syrupIncluded ? syrupMod.price : 0;
+  const extras =
+    lineExtras(
+      chosenModifiers.map((m) => ({ modifierId: m.id, name: m.name, price: m.price })),
+    ) + syrupCharge;
   const price = (selectedSize?.price ?? 0) + extras;
-  const needsFlavor = (drink.flavorOptions ?? []).length > 0;
+  const needsFlavor = variantOptions.length > 0;
   const canAdd = !!size && selectedSize && (!needsFlavor || !!flavor);
 
   const toggleMod = (mod: Modifier) => {
@@ -94,6 +108,10 @@ export function DrinkDetailPage() {
 
   const handleAdd = () => {
     if (!size || !selectedSize || !canAdd) return;
+    const modsForCart = [...chosenModifiers];
+    if (syrup && syrupMod && !syrupIncluded) {
+      modsForCart.push(syrupMod);
+    }
     addItem({
       drinkId: drink.id,
       drinkName: drink.name,
@@ -102,7 +120,8 @@ export function DrinkDetailPage() {
       quantity: 1,
       unitPrice: selectedSize.price,
       flavor: flavor || undefined,
-      modifiers: chosenModifiers.map((m) => ({
+      syrup: syrup || undefined,
+      modifiers: modsForCart.map((m) => ({
         modifierId: m.id,
         name: m.name,
         price: m.price,
@@ -113,6 +132,8 @@ export function DrinkDetailPage() {
     window.clearTimeout(addedTimer.current);
     addedTimer.current = window.setTimeout(() => setJustAdded(false), 1800);
   };
+
+  const syrupPriceLabel = syrupIncluded ? 'входит в цену' : `+${syrupMod?.price ?? 40} ₽`;
 
   return (
     <div className="pb-8">
@@ -169,16 +190,14 @@ export function DrinkDetailPage() {
         {needsFlavor && (
           <div className="mt-6">
             <p id="flavor-label" className="text-sm font-medium text-brand-dark">
-              {drink.category === 'ice' || drink.name === 'Чай' ? 'Вкус' : 'Вариант'}
+              {drink.name === 'Чай' ? 'Вкус' : 'Вариант'}
             </p>
             <div
               role="group"
               aria-labelledby="flavor-label"
-              className={`grid gap-2 mt-2 ${
-                (drink.flavorOptions ?? []).length === 1 ? 'grid-cols-1' : 'grid-cols-2'
-              }`}
+              className={`grid gap-2 mt-2 ${variantOptions.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}
             >
-              {(drink.flavorOptions ?? []).map((opt) => (
+              {variantOptions.map((opt) => (
                 <button
                   key={opt}
                   type="button"
@@ -197,11 +216,23 @@ export function DrinkDetailPage() {
           </div>
         )}
 
-        {modifiers.length > 0 && (
+        {(showSyrup || extraModifiers.length > 0) && (
           <div className="mt-6">
-            <label className="text-sm font-medium text-brand-dark">Дополнительно</label>
+            <p className="text-sm font-medium text-brand-dark">Дополнительно</p>
             <div className="mt-2 space-y-2">
-              {modifiers.map((mod) => (
+              {showSyrup && (
+                <button
+                  type="button"
+                  onClick={() => setSyrupOpen(true)}
+                  className="flex w-full items-center gap-3 p-3 bg-brand-paper rounded-xl border border-brand-dark/10 text-left"
+                >
+                  <span className="flex-1">{syrup ?? 'Добавить сироп'}</span>
+                  {syrupPriceLabel ? (
+                    <span className="font-sans font-semibold text-brand shrink-0">{syrupPriceLabel}</span>
+                  ) : null}
+                </button>
+              )}
+              {extraModifiers.map((mod) => (
                 <label
                   key={mod.id}
                   className="flex items-center gap-3 p-3 bg-brand-paper rounded-xl border border-brand-dark/10"
@@ -234,6 +265,17 @@ export function DrinkDetailPage() {
           {justAdded ? 'Добавлено' : `В корзину · ${price} ₽`}
         </button>
       </div>
+
+      {showSyrup && syrupMod && (
+        <SyrupModal
+          open={syrupOpen}
+          selectedName={syrup}
+          includedInPrice={syrupIncluded}
+          price={syrupMod.price}
+          onClose={() => setSyrupOpen(false)}
+          onSelect={setSyrup}
+        />
+      )}
     </div>
   );
 }

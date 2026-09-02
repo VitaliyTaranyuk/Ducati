@@ -47,6 +47,7 @@ export interface CartItem {
   quantity: number;
   unitPrice: number;
   flavor?: string;
+  syrup?: string;
   modifiers: CartModifier[];
 }
 
@@ -64,6 +65,7 @@ export interface OrderItem {
   size: DrinkSize;
   volumeMl: number;
   flavor: string | null;
+  syrup: string | null;
   quantity: number;
   unitPrice: number;
   subtotal: number;
