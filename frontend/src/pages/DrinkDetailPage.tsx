@@ -17,8 +17,6 @@ import {
 } from '../lib/menu';
 import { drinkChips } from '../lib/ingredients';
 import { flavorBadge, flavorImageUrl } from '../data/flavors';
-import { readStoredReadyAt } from '../lib/readyAt';
-import { ReadyTimePicker } from '../components/ReadyTimePicker';
 import { FlavorPhotoTiles } from '../components/FlavorPhotoTiles';
 import { SegmentSlider } from '../components/SegmentSlider';
 import { SyrupStrip } from '../components/SyrupStrip';
@@ -128,7 +126,6 @@ export function DrinkDetailPage() {
   const [justAdded, setJustAdded] = useState(false);
   const addedTimer = useRef<number>();
   const stageScroll = useRef<HTMLDivElement>(null);
-  const [readyAt, setReadyAt] = useState(readStoredReadyAt);
 
   const variantOptions = drink?.category === 'ice' ? [] : (drink?.flavorOptions ?? []);
 
@@ -228,7 +225,6 @@ export function DrinkDetailPage() {
         price: m.price,
       })),
     });
-    sessionStorage.setItem('readyAt', readyAt.toISOString());
     setJustAdded(true);
     window.clearTimeout(addedTimer.current);
     addedTimer.current = window.setTimeout(() => setJustAdded(false), 1800);
@@ -380,10 +376,6 @@ export function DrinkDetailPage() {
               )}
             </div>
           )}
-
-          <div className="mt-6">
-            <ReadyTimePicker value={readyAt} onChange={setReadyAt} />
-          </div>
 
           <div
             className={

@@ -109,7 +109,7 @@ test.describe('меню и карточка дизайна А', () => {
     await expect(page.getByText(/Халва/)).toBeVisible();
   });
 
-  test('время готовности открывается из блока, рамка героя не прыгает', async ({ page }) => {
+  test('рамка героя не прыгает при смене вкуса', async ({ page }) => {
     await page.goto('/drink/cappuccino');
     const hero = page.locator('.drink-hero');
     const sheet = page.locator('.drink-sheet');
@@ -123,11 +123,7 @@ test.describe('меню и карточка дизайна А', () => {
     );
     const after = await hero.evaluate((el) => el.getBoundingClientRect().height);
     expect(after).toBe(before);
-
-    await page.getByTestId('ready-time-trigger').click();
-    await expect(page.getByTestId('ready-time-sheet')).toBeVisible();
-    await page.getByRole('button', { name: /Готово/ }).click();
-    await expect(page.getByTestId('ready-time-sheet')).toHaveCount(0);
+    await expect(page.getByTestId('ready-time-trigger')).toHaveCount(0);
   });
 
   test('назад из карточки возвращает в меню', async ({ page }) => {
