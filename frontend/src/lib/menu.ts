@@ -1,4 +1,4 @@
-import type { CartItem, CartModifier, DrinkCategory, DrinkSize } from '../types';
+import type { CartItem, CartModifier, DrinkCategory, DrinkSize, DrinkSizeOption } from '../types';
 
 export const CATEGORY_TABS: { id: DrinkCategory; label: string }[] = [
   { id: 'classics', label: 'Классика' },
@@ -19,11 +19,24 @@ export const FALLBACK_VOLUME: Record<DrinkSize, number> = {
 };
 
 export function formatVolume(volumeMl: number): string {
-  return `${volumeMl} мл`;
+  return `${volumeMl}\u00a0мл`;
+}
+
+export function formatPrice(price: number): string {
+  return `${price}\u00a0₽`;
 }
 
 export function formatSizePrice(volumeMl: number, price: number): string {
-  return `${volumeMl} мл · ${price} ₽`;
+  return `${formatVolume(volumeMl)} · ${formatPrice(price)}`;
+}
+
+/** One size → that one. Two → smaller. Three → middle (usually M). */
+export function defaultDrinkSize(
+  sizes: Pick<DrinkSizeOption, 'size' | 'volumeMl'>[],
+): DrinkSize | null {
+  if (sizes.length === 0) return null;
+  const ordered = [...sizes].sort((a, b) => a.volumeMl - b.volumeMl);
+  return ordered[Math.floor((ordered.length - 1) / 2)]?.size ?? null;
 }
 
 export const SYRUP_MODIFIER_NAME = 'Сироп';

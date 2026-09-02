@@ -3,7 +3,15 @@ import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { drinksApi, modifiersApi } from '../lib/api';
 import { useCartStore } from '../store';
-import { drinkMenuPath, formatSizePrice, lineExtras, saveMenuReturn, SYRUP_MODIFIER_NAME } from '../lib/menu';
+import {
+  defaultDrinkSize,
+  drinkMenuPath,
+  formatPrice,
+  formatVolume,
+  lineExtras,
+  saveMenuReturn,
+  SYRUP_MODIFIER_NAME,
+} from '../lib/menu';
 import { readStoredReadyAt } from '../lib/readyAt';
 import { ReadyTimePicker } from '../components/ReadyTimePicker';
 import { SyrupModal } from '../components/SyrupModal';
@@ -47,14 +55,11 @@ export function DrinkDetailPage() {
   const variantOptions = drink?.category === 'ice' ? [] : (drink?.flavorOptions ?? []);
 
   useEffect(() => {
-    if (drink?.sizes.length === 1) setSize(drink.sizes[0].size);
-  }, [drink]);
-
-  useEffect(() => {
     if (drink) saveMenuReturn(drink);
   }, [drink]);
 
   useEffect(() => {
+    setSize(null);
     setImgFailed(false);
     setJustAdded(false);
     setFlavor('');
@@ -70,7 +75,8 @@ export function DrinkDetailPage() {
 
   useEffect(() => () => window.clearTimeout(addedTimer.current), []);
 
-  const selectedSize = drink?.sizes.find((s) => s.size === size);
+  const activeSize = size ?? (drink?.sizes.length ? defaultDrinkSize(drink.sizes) : null);
+  const selectedSize = drink?.sizes.find((s) => s.size === activeSize);
   const chosenModifiers = useMemo(
     () => extraModifiers.filter((m) => selectedMods.includes(m.id)),
     [extraModifiers, selectedMods],
@@ -98,7 +104,7 @@ export function DrinkDetailPage() {
     ) + syrupCharge;
   const price = (selectedSize?.price ?? 0) + extras;
   const needsFlavor = variantOptions.length > 0;
-  const canAdd = !!size && selectedSize && (!needsFlavor || !!flavor);
+  const canAdd = !!activeSize && selectedSize && (!needsFlavor || !!flavor);
 
   const toggleMod = (mod: Modifier) => {
     setSelectedMods((prev) =>
@@ -107,7 +113,7 @@ export function DrinkDetailPage() {
   };
 
   const handleAdd = () => {
-    if (!size || !selectedSize || !canAdd) return;
+    if (!activeSize || !selectedSize || !canAdd) return;
     const modsForCart = [...chosenModifiers];
     if (syrup && syrupMod && !syrupIncluded) {
       modsForCart.push(syrupMod);
@@ -115,7 +121,7 @@ export function DrinkDetailPage() {
     addItem({
       drinkId: drink.id,
       drinkName: drink.name,
-      size,
+      size: activeSize,
       volumeMl: selectedSize.volumeMl,
       quantity: 1,
       unitPrice: selectedSize.price,
@@ -169,21 +175,39 @@ export function DrinkDetailPage() {
 
         <div className="mt-6">
           <label className="text-sm font-medium text-brand-dark">Объём</label>
-          <div className={`grid gap-2 mt-2 ${drink.sizes.length === 1 ? 'grid-cols-1' : 'grid-cols-3'}`}>
-            {drink.sizes.map((s) => (
-              <button
-                key={s.size}
-                type="button"
-                onClick={() => setSize(s.size)}
-                className={`py-3 rounded-xl border-2 font-sans font-medium transition-colors ${
-                  size === s.size
-                    ? 'border-brand bg-brand text-brand-paper'
-                    : 'border-brand-dark/15 text-brand-dark bg-brand-paper'
-                }`}
-              >
-                {formatSizePrice(s.volumeMl, s.price)}
-              </button>
-            ))}
+          <div
+            className={`grid gap-2 mt-2 ${
+              drink.sizes.length === 1
+                ? 'grid-cols-1'
+                : drink.sizes.length === 2
+                  ? 'grid-cols-2'
+                  : 'grid-cols-3'
+            }`}
+          >
+            {drink.sizes.map((s) => {
+              const selected = activeSize === s.size;
+              return (
+                <button
+                  key={s.size}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setSize(s.size)}
+                  className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-xl border-2 font-sans text-sm leading-snug transition-colors ${
+                    selected
+                      ? 'border-brand bg-brand text-brand-paper'
+                      : 'border-brand-dark/15 text-brand-dark bg-brand-paper'
+                  }`}
+                >
+                  <span className="whitespace-nowrap font-medium">{formatVolume(s.volumeMl)}</span>
+                  <span className="mt-1.5 mb-1.5 block h-px w-7 bg-current opacity-30" aria-hidden />
+                  <span
+                    className={`whitespace-nowrap font-semibold tabular-nums ${selected ? '' : 'text-brand'}`}
+                  >
+                    {formatPrice(s.price)}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
