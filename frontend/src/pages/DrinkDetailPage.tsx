@@ -13,6 +13,7 @@ import {
   SYRUP_MODIFIER_NAME,
 } from '../lib/menu';
 import { readStoredReadyAt } from '../lib/readyAt';
+import { findFlavor } from '../data/flavors';
 import { ReadyTimePicker } from '../components/ReadyTimePicker';
 import { SyrupModal } from '../components/SyrupModal';
 import type { DrinkSize, Modifier } from '../types';
@@ -142,7 +143,7 @@ export function DrinkDetailPage() {
   const syrupPriceLabel = syrupIncluded ? 'входит в цену' : `+${syrupMod?.price ?? 40} ₽`;
 
   return (
-    <div className="pb-8">
+    <div className="flex min-h-[calc(100dvh-4.25rem)] flex-col">
       <div className="w-full aspect-[16/9] bg-brand-accent flex items-center justify-center relative">
         {drink.imageUrl && !imgFailed ? (
           <img
@@ -169,7 +170,7 @@ export function DrinkDetailPage() {
           </span>
         )}
       </div>
-      <div className="px-4 py-6">
+      <div className="flex flex-1 flex-col px-4 pt-6">
         <h1 className="font-display text-2xl font-bold text-brand-dark">{drink.name}</h1>
         {drink.description && <p className="text-brand-dark/60 mt-2">{drink.description}</p>}
 
@@ -221,21 +222,39 @@ export function DrinkDetailPage() {
               aria-labelledby="flavor-label"
               className={`grid gap-2 mt-2 ${variantOptions.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}
             >
-              {variantOptions.map((opt) => (
-                <button
-                  key={opt}
-                  type="button"
-                  aria-pressed={flavor === opt}
-                  onClick={() => setFlavor(opt)}
-                  className={`py-3 px-2 rounded-xl border-2 font-sans font-medium text-center text-sm leading-snug break-words transition-colors ${
-                    flavor === opt
-                      ? 'border-brand bg-brand text-brand-paper'
-                      : 'border-brand-dark/15 text-brand-dark bg-brand-paper'
-                  }`}
-                >
-                  {opt}
-                </button>
-              ))}
+              {variantOptions.map((opt) => {
+                const visual = findFlavor(opt);
+                const selected = flavor === opt;
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setFlavor(opt)}
+                    className={`flex min-h-16 items-center gap-2.5 rounded-xl border-2 py-2 pl-2 pr-2.5 text-left font-sans font-semibold text-sm leading-snug break-words transition-colors ${
+                      selected
+                        ? 'border-brand bg-brand text-brand-paper'
+                        : 'border-brand-dark/15 text-brand-dark bg-brand-paper'
+                    }`}
+                  >
+                    {visual ? (
+                      <img
+                        src={visual.imageUrl}
+                        alt=""
+                        className="h-12 w-12 shrink-0 rounded-[10px] object-cover bg-brand-accent"
+                      />
+                    ) : (
+                      <span
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[10px] bg-brand-accent text-brand-dark/35"
+                        aria-hidden
+                      >
+                        —
+                      </span>
+                    )}
+                    <span>{opt}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -279,15 +298,18 @@ export function DrinkDetailPage() {
           <ReadyTimePicker value={readyAt} onChange={setReadyAt} />
         </div>
 
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={!canAdd}
-          aria-live="polite"
-          className="mt-8 w-full py-4 bg-brand text-brand-paper rounded-2xl font-semibold text-lg disabled:opacity-40"
-        >
-          {justAdded ? 'Добавлено' : `В корзину · ${price} ₽`}
-        </button>
+        {canAdd ? (
+          <div className="sticky bottom-0 z-20 mt-auto -mx-4 bg-transparent px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <button
+              type="button"
+              onClick={handleAdd}
+              aria-live="polite"
+              className="w-full rounded-2xl border border-[rgba(60,48,40,0.12)] bg-white/[0.18] py-4 text-lg font-semibold text-brand backdrop-blur [text-shadow:0_0_10px_#FAF7F2,0_1px_0_#FAF7F2]"
+            >
+              {justAdded ? 'Добавлено' : `В корзину · ${price} ₽`}
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {showSyrup && syrupMod && (
