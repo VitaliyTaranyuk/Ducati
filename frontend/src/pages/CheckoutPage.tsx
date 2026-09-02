@@ -4,20 +4,19 @@ import { useQuery } from '@tanstack/react-query';
 import { drinksApi, ordersApi } from '../lib/api';
 import { enqueueRequest } from '../lib/offlineQueue';
 import { flavorImageUrl } from '../data/flavors';
-import { formatPrice } from '../lib/menu';
+import { formatPrice, formatVolume, lineUnitTotal } from '../lib/menu';
 import {
   CLOSE_HOUR,
   OPEN_HOUR,
+  defaultReadyAt,
   formatReadyAtClock,
-  formatShopDay,
   hourSlots,
-  readStoredReadyAt,
   shiftReadyAtDay,
   slotOf,
   snapReadyAt,
   writeStoredReadyAt,
 } from '../lib/readyAt';
-import { ReadyTimePicker } from '../components/ReadyTimePicker';
+import { CheckoutTimeWheels } from '../components/CheckoutTimeWheels';
 import { useCartStore, useOfflineStore } from '../store';
 import type { CartItem, Drink } from '../types';
 
@@ -32,7 +31,14 @@ function drinksCountLabel(n: number): string {
 function shortDrinkLabel(item: CartItem): string {
   if (!item.flavor) return item.drinkName;
   if (item.flavor.toLowerCase().includes(item.drinkName.toLowerCase())) return item.flavor;
-  return `${item.drinkName} ${item.flavor.toLowerCase()}`;
+  return `${item.drinkName} · ${item.flavor}`;
+}
+
+function lineNotes(item: CartItem): string | null {
+  const parts: string[] = [];
+  if (item.syrup) parts.push(item.syrup);
+  for (const m of item.modifiers ?? []) parts.push(m.name);
+  return parts.length ? parts.join(' · ') : null;
 }
 
 function thumbUrl(item: CartItem, drinks: Drink[]): string | undefined {
@@ -41,9 +47,26 @@ function thumbUrl(item: CartItem, drinks: Drink[]): string | undefined {
   return drinks.find((d) => d.id === item.drinkId)?.imageUrl ?? undefined;
 }
 
+function MenuChevron() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M15 18l-6-6 6-6" />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] shrink-0 text-brand" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 8v4l2.5 1.5" />
+    </svg>
+  );
+}
+
 export function CheckoutPage() {
   const navigate = useNavigate();
-  const { items, total, clear } = useCartStore();
+  const { items, total, clear, updateQuantity, removeItem } = useCartStore();
   const { isOnline, setQueueCount } = useOfflineStore();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -52,8 +75,8 @@ export function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [queued, setQueued] = useState(false);
-  const [readyAt, setReadyAt] = useState(readStoredReadyAt);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [readyAt, setReadyAt] = useState(() => defaultReadyAt());
+  const [timed, setTimed] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const { data } = useQuery({
     queryKey: ['drinks'],
@@ -81,7 +104,7 @@ export function CheckoutPage() {
       customerName: name.trim(),
       customerPhone: phone.trim(),
       comment: comment.trim() || undefined,
-      readyAt: snapReadyAt(readyAt).toISOString(),
+      readyAt: (timed ? snapReadyAt(readyAt) : defaultReadyAt()).toISOString(),
       items: items.map((i) => ({
         drinkId: i.drinkId,
         size: i.size,
@@ -142,8 +165,12 @@ export function CheckoutPage() {
     return (
       <div className="px-4 py-16 text-center">
         <p className="text-brand-dark/60 text-lg">Корзина пуста</p>
-        <Link to="/" className="inline-block mt-4 text-brand font-medium">
-          ← К меню
+        <Link
+          to="/"
+          className="mt-4 inline-flex items-center gap-1 rounded-full bg-brand-dark/[0.06] py-1.5 pl-2 pr-3 text-sm font-semibold text-brand-dark"
+        >
+          <MenuChevron />
+          Меню
         </Link>
       </div>
     );
@@ -156,86 +183,96 @@ export function CheckoutPage() {
   const todayAvailable = slots.some((s) => s.dayOffset === 0);
   const tomorrowAvailable = slots.some((s) => s.dayOffset === 1);
   const canPick = slots.length > 0;
-  const dayWord = currentSlot.dayOffset === 1 ? 'Завтра' : 'Сегодня';
-  const ctaWhen = currentSlot.dayOffset === 1 ? `завтра к ${clock}` : `к ${clock}`;
-  const names = items
-    .map((item) => {
-      const label = shortDrinkLabel(item);
-      return item.quantity > 1 ? `${label} ×${item.quantity}` : label;
-    })
-    .join(', ');
-  const thumbs = items.slice(0, 3);
+  const ctaLabel = timed ? `Подтвердить · к ${clock}` : 'Подтвердить заказ';
+
+  const openTimed = () => {
+    const next = snapReadyAt(readyAt, now);
+    handleReadyAt(next);
+    setTimed(true);
+  };
 
   return (
     <div className="px-4 pb-36">
       <form onSubmit={handleSubmit}>
-        <div className="flex items-center gap-3 mb-4 pt-1">
-          <Link
-            to="/cart"
-            aria-label="Назад в корзину"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-dark/[0.06] text-sm text-brand-dark/65"
-          >
-            ←
-          </Link>
-          <h1 className="font-display text-2xl font-bold text-brand-dark">Заберу</h1>
-        </div>
+        <Link
+          to="/"
+          className="mb-2.5 inline-flex items-center gap-1 rounded-full bg-brand-dark/[0.06] py-1.5 pl-2 pr-3 text-sm font-semibold text-brand-dark"
+        >
+          <MenuChevron />
+          Меню
+        </Link>
 
         <div
           data-testid="checkout-ticket"
-          className="rounded-[20px] border border-brand-dark/10 bg-brand-paper px-[18px] pb-4 pt-5 text-center"
+          className="rounded-[20px] border border-brand-dark/10 bg-brand-paper px-[18px] pb-4 pt-4 text-center"
         >
           <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-brand-dark/40">
             Готовность
           </p>
           {canPick ? (
             <>
-              <p
-                data-testid="checkout-clock"
-                className="font-display mt-2 text-[64px] leading-none tracking-[-0.03em] tabular-nums"
-              >
-                {clock}
-              </p>
-              <p className="mt-1 mb-3.5 text-[15px] text-brand-dark/65">
-                {dayWord}, {formatShopDay(now, currentSlot.dayOffset)}
-              </p>
-              <div className="grid grid-cols-2 gap-2" role="group" aria-label="День готовности">
-                {(
-                  [
-                    { offset: 0 as const, label: 'Сегодня', available: todayAvailable },
-                    { offset: 1 as const, label: 'Завтра', available: tomorrowAvailable },
-                  ]
-                ).map((day) => {
-                  const selected = currentSlot.dayOffset === day.offset;
-                  return (
-                    <button
-                      key={day.offset}
-                      type="button"
-                      data-testid={day.offset === 0 ? 'checkout-day-today' : 'checkout-day-tomorrow'}
-                      disabled={!day.available}
-                      aria-pressed={selected}
-                      onClick={() => handleReadyAt(shiftReadyAtDay(readyAt, day.offset, now))}
-                      className={`rounded-[14px] px-2 py-2.5 text-center ${
-                        selected
-                          ? 'bg-brand-creamLight text-brand-dark shadow-[inset_0_0_0_1px_#3c3028] font-semibold'
-                          : 'bg-brand-dark/[0.06] text-brand-dark/70'
-                      } disabled:cursor-not-allowed disabled:opacity-40`}
-                    >
-                      <span className="block text-[15px] leading-tight">{day.label}</span>
-                      <span className="mt-0.5 block text-[12px] font-normal text-brand-dark/45">
-                        {formatShopDay(now, day.offset)}
-                      </span>
-                    </button>
-                  );
-                })}
+              <div className="mt-0.5 mb-2 flex min-h-[100px] items-center justify-center">
+                {timed ? (
+                  <CheckoutTimeWheels value={readyAt} onChange={handleReadyAt} now={now} />
+                ) : (
+                  <div data-testid="checkout-asap" className="text-center">
+                    <p className="font-display text-[48px] leading-none tracking-[-0.03em]">
+                      ≈ 15 <span className="text-[22px] font-normal text-brand-dark/45">мин</span>
+                    </p>
+                    <p className="mt-2 text-[13px] leading-snug text-brand-dark/50">
+                      Если раньше — напишем в приложении
+                    </p>
+                  </div>
+                )}
               </div>
-              <button
-                type="button"
-                data-testid="checkout-hour"
-                onClick={() => setSheetOpen(true)}
-                className="mt-3 w-full py-1 text-sm font-semibold text-brand"
-              >
-                Изменить час ›
-              </button>
+              {timed ? (
+                <button
+                  type="button"
+                  data-testid="checkout-to-asap"
+                  onClick={() => setTimed(false)}
+                  className="mb-1.5 flex min-h-11 w-full items-center justify-center gap-2 rounded-[14px] border border-brand-dark/20 bg-transparent text-[15px] font-semibold text-brand"
+                >
+                  <MenuChevron />
+                  По готовности
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  data-testid="checkout-to-time"
+                  onClick={openTimed}
+                  className="mb-1.5 flex min-h-11 w-full items-center justify-center gap-2 rounded-[14px] border border-brand-dark/20 bg-brand-creamLight text-[15px] font-semibold text-brand-dark shadow-[0_1px_0_rgba(60,48,40,0.08)]"
+                >
+                  <ClockIcon />
+                  К точному времени
+                </button>
+              )}
+              {timed ? (
+                <div className="mb-2 flex items-baseline justify-center gap-3" role="group" aria-label="День готовности">
+                  {(
+                    [
+                      { offset: 0 as const, label: 'Сегодня', available: todayAvailable },
+                      { offset: 1 as const, label: 'Завтра', available: tomorrowAvailable },
+                    ]
+                  ).map((day) => {
+                    const selected = currentSlot.dayOffset === day.offset;
+                    return (
+                      <button
+                        key={day.offset}
+                        type="button"
+                        data-testid={day.offset === 0 ? 'checkout-day-today' : 'checkout-day-tomorrow'}
+                        disabled={!day.available}
+                        aria-pressed={selected}
+                        onClick={() => handleReadyAt(shiftReadyAtDay(readyAt, day.offset, now))}
+                        className={`bg-transparent text-sm ${
+                          selected ? 'font-semibold text-brand-dark' : 'text-brand-dark/35'
+                        } disabled:cursor-not-allowed disabled:opacity-40`}
+                      >
+                        {day.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
             </>
           ) : (
             <p className="mt-3 mb-2 text-sm text-brand-dark/60">
@@ -253,29 +290,63 @@ export function CheckoutPage() {
             aria-hidden
           />
 
-          <div data-testid="checkout-drinks" className="flex items-center gap-2.5 text-left">
-            <div className="flex shrink-0">
-              {thumbs.map((item, i) => {
-                const src = thumbUrl(item, drinks);
-                return (
-                  <span
-                    key={item.lineKey}
-                    className={`inline-block h-10 w-10 overflow-hidden rounded-[10px] border-2 border-brand-paper bg-brand-accent ${
-                      i > 0 ? '-ml-3' : ''
-                    }`}
-                  >
-                    {src ? (
-                      <img src={src} alt="" className="h-full w-full object-cover" />
-                    ) : null}
+          <div data-testid="checkout-drinks" className="text-left">
+            {items.map((item) => {
+              const src = thumbUrl(item, drinks);
+              const extras = lineNotes(item);
+              const lineTotal = lineUnitTotal(item) * item.quantity;
+              return (
+                <div
+                  key={item.lineKey}
+                  className="flex items-center gap-2.5 border-t border-brand-dark/10 py-2.5 first:border-t-0 first:pt-0"
+                >
+                  <span className="h-11 w-11 shrink-0 overflow-hidden rounded-[10px] bg-brand-accent">
+                    {src ? <img src={src} alt="" className="h-full w-full object-cover" /> : null}
                   </span>
-                );
-              })}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold leading-tight">{shortDrinkLabel(item)}</p>
+                    <p className="mt-0.5 text-[13px] text-brand-dark/50">
+                      {formatVolume(item.volumeMl)}
+                      {extras ? ` · ${extras}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      aria-label="Меньше"
+                      onClick={() => updateQuantity(item.lineKey, item.quantity - 1)}
+                      className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-accent text-base"
+                    >
+                      −
+                    </button>
+                    <span className="w-4 text-center text-sm font-semibold">{item.quantity}</span>
+                    <button
+                      type="button"
+                      aria-label="Больше"
+                      onClick={() => updateQuantity(item.lineKey, item.quantity + 1)}
+                      className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-accent text-base"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <p className="w-14 shrink-0 text-right text-sm font-semibold text-brand">
+                    {formatPrice(lineTotal)}
+                  </p>
+                  <button
+                    type="button"
+                    aria-label="Убрать"
+                    onClick={() => removeItem(item.lineKey)}
+                    className="shrink-0 text-sm text-red-400"
+                  >
+                    ✕
+                  </button>
+                </div>
+              );
+            })}
+            <div className="flex items-center justify-between border-t border-brand-dark/10 pt-2.5 text-sm">
+              <span className="font-semibold">{drinksCountLabel(cups)}</span>
+              <span className="font-bold text-brand">{formatPrice(total())}</span>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold">{drinksCountLabel(cups)}</p>
-              <p className="truncate text-[13px] text-brand-dark/50">{names}</p>
-            </div>
-            <p className="shrink-0 font-bold text-brand">{formatPrice(total())}</p>
           </div>
         </div>
 
@@ -291,7 +362,7 @@ export function CheckoutPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="w-full bg-transparent px-3.5 py-2.5 text-[15px] outline-none"
-            placeholder="Как к вам обращаться"
+            placeholder="Как к Вам обращаться?"
             maxLength={100}
             autoComplete="name"
           />
@@ -343,14 +414,6 @@ export function CheckoutPage() {
           </p>
         )}
 
-        <ReadyTimePicker
-          value={readyAt}
-          onChange={handleReadyAt}
-          hideTrigger
-          open={sheetOpen}
-          onOpenChange={setSheetOpen}
-        />
-
         <div className="fixed bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-brand-creamLight via-brand-creamLight to-transparent px-4 pb-4 pt-3 safe-bottom">
           <div className="mx-auto max-w-lg">
             <button
@@ -359,7 +422,7 @@ export function CheckoutPage() {
               disabled={loading || items.length === 0 || !canPick}
               className="w-full rounded-2xl bg-brand py-[15px] text-base font-semibold text-brand-paper disabled:opacity-50"
             >
-              {loading ? 'Отправка...' : `Подтвердить · ${ctaWhen}`}
+              {loading ? 'Отправка...' : ctaLabel}
             </button>
             <p className="mt-1.5 text-center text-xs text-brand-dark/35">
               Оплата на месте при получении

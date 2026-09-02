@@ -87,7 +87,7 @@ test.describe('меню и карточка дизайна А', () => {
     await expect(page.getByTestId('ingredient-chips')).toContainText('сырный крем');
     await page.getByTestId('add-to-cart').click();
     await expect(page.getByTestId('add-to-cart')).toHaveText('Добавлено');
-    await page.goto('/cart');
+    await page.goto('/checkout');
     await expect(page.getByText('Раф')).toBeVisible();
     await expect(page.getByText(/Сырный/)).toBeVisible();
   });
@@ -104,7 +104,7 @@ test.describe('меню и карточка дизайна А', () => {
     await page.getByTestId('flavor-tile').filter({ hasText: 'Халва' }).click();
     await page.getByTestId('add-to-cart').click();
     await expect(page.getByTestId('add-to-cart')).toHaveText('Добавлено');
-    await page.goto('/cart');
+    await page.goto('/checkout');
     await expect(page.getByText('Раф')).toBeVisible();
     await expect(page.getByText(/Халва/)).toBeVisible();
   });

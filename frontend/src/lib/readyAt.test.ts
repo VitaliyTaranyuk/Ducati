@@ -3,6 +3,8 @@ import {
   formatReadyAtClock,
   fromShopLocal,
   shiftReadyAtDay,
+  shiftReadyAtHour,
+  shiftReadyAtMinute,
   shopParts,
 } from './readyAt';
 
@@ -24,5 +26,13 @@ describe('checkout ticket time', () => {
     const value = fromShopLocal(2026, 9, 2, 14, 30);
     const next = shiftReadyAtDay(value, 0, now);
     expect(shopParts(next)).toMatchObject({ day: 2, hour: 14, minute: 30 });
+  });
+
+  it('steps hour and minute by the shop grid', () => {
+    const value = fromShopLocal(2026, 9, 2, 14, 30);
+    expect(shopParts(shiftReadyAtHour(value, 1, now))).toMatchObject({ hour: 15, minute: 30 });
+    expect(shopParts(shiftReadyAtHour(value, -1, now))).toMatchObject({ hour: 13, minute: 30 });
+    expect(shopParts(shiftReadyAtMinute(value, 1, now))).toMatchObject({ hour: 14, minute: 35 });
+    expect(shopParts(shiftReadyAtMinute(value, -1, now))).toMatchObject({ hour: 14, minute: 25 });
   });
 });

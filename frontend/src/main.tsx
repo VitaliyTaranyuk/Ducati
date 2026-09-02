@@ -1,6 +1,6 @@
 import { StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { registerSW } from 'virtual:pwa-register';
 import * as Sentry from '@sentry/react';
@@ -10,7 +10,6 @@ import { SyncButton } from './components/SyncButton';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { HomePage } from './pages/HomePage';
 import { DrinkDetailPage } from './pages/DrinkDetailPage';
-import { CartPage } from './pages/CartPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { LoginPage } from './pages/LoginPage';
@@ -96,7 +95,7 @@ function AppShell() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/drink/:id" element={<DrinkDetailPage />} />
-          <Route path="/cart" element={<CartPage />} />
+          <Route path="/cart" element={<Navigate to="/checkout" replace />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/login" element={<LoginPage />} />

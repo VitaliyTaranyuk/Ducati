@@ -202,6 +202,30 @@ export function shiftReadyAtDay(value: Date, dayOffset: 0 | 1, now: Date = new D
   return combineReadyAt(nextSlot, minute);
 }
 
+export function shiftReadyAtHour(value: Date, dir: -1 | 1, now: Date = new Date()): Date {
+  const current = slotOf(value, now);
+  const daySlots = hourSlots(now).filter((s) => s.dayOffset === current.dayOffset);
+  if (daySlots.length === 0) return value;
+  const idx = Math.max(
+    0,
+    daySlots.findIndex((s) => s.hour === current.hour),
+  );
+  const nextSlot = daySlots[(idx + dir + daySlots.length) % daySlots.length];
+  const parts = shopParts(value);
+  const opts = minuteOptions(nextSlot, now);
+  const minute = opts.includes(parts.minute) ? parts.minute : (opts[0] ?? 0);
+  return combineReadyAt(nextSlot, minute);
+}
+
+export function shiftReadyAtMinute(value: Date, dir: -1 | 1, now: Date = new Date()): Date {
+  const slot = slotOf(value, now);
+  const opts = minuteOptions(slot, now);
+  if (opts.length === 0) return value;
+  const parts = shopParts(value);
+  const idx = Math.max(0, opts.indexOf(parts.minute));
+  return combineReadyAt(slot, opts[(idx + dir + opts.length) % opts.length]);
+}
+
 export function formatReadyAtLabel(date: Date, now: Date = new Date()): string {
   const p = shopParts(date);
   const n = shopParts(now);

@@ -34,9 +34,9 @@ export function Header() {
           <InstallPrompt />
           {isClientRoute && (
             <Link
-              to="/cart"
+              to="/checkout"
               className="relative p-2 rounded-full bg-brand text-brand-paper"
-              aria-label="Корзина"
+              aria-label="Заказ"
             >
               🛒
               {cartCount > 0 && (
