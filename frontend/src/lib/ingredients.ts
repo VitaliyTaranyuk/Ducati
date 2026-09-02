@@ -2,6 +2,10 @@ import type { Drink } from '../types';
 
 const CLASSIC_FLAVORS = new Set(['Классика', 'Классический']);
 
+const FLAVOR_CHIP: Record<string, string> = {
+  Сырный: 'сырный крем',
+};
+
 const BASE: Record<string, string[]> = {
   cappuccino: ['эспрессо', 'молоко'],
   raf: ['эспрессо', 'сливки'],
@@ -10,7 +14,6 @@ const BASE: Record<string, string[]> = {
   americano: ['эспрессо', 'вода'],
   espresso: ['эспрессо'],
   'matcha-green': ['матча', 'молоко'],
-  'cheese-raf': ['эспрессо', 'сливки', 'сырный крем'],
   'hot-chocolate': ['молоко'],
   tea: ['чай'],
   bumble: ['эспрессо', 'апельсиновый сок', 'лёд'],
@@ -32,7 +35,7 @@ export function drinkChips(
     }
   }
   if (flavor && !CLASSIC_FLAVORS.has(flavor)) {
-    chips.push(flavor.toLowerCase());
+    chips.push(FLAVOR_CHIP[flavor] ?? flavor.toLowerCase());
   }
   return chips;
 }

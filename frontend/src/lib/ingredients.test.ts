@@ -12,6 +12,11 @@ describe('drinkChips', () => {
       'растительное молоко',
       'халва',
     ]);
+    expect(drinkChips({ id: 'raf', flavorOptions: [] }, 'Сырный', false)).toEqual([
+      'эспрессо',
+      'сливки',
+      'сырный крем',
+    ]);
   });
 
   it('does not treat iced latte as a hot latte variant', () => {

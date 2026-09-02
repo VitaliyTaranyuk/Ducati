@@ -8,7 +8,9 @@ test.describe('меню и карточка дизайна А', () => {
     await expect(page.getByRole('button', { name: 'Спешл' })).toHaveCount(0);
 
     await expect(page.getByRole('heading', { name: 'Раф', exact: true })).toHaveCount(1);
+    await expect(page.getByTestId('drink-badge')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Латте', exact: true })).toHaveCount(1);
+    await expect(page.getByRole('heading', { name: 'Сырный раф' })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: /Халва/ })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: /тыква/i })).toHaveCount(0);
 
@@ -67,6 +69,36 @@ test.describe('меню и карточка дизайна А', () => {
     await expect(page.getByRole('heading', { name: 'Раф', exact: true })).toHaveCount(0);
   });
 
+  test('сырный — второй вкус рафа с пометкой New', async ({ page }) => {
+    await page.goto('/drink/raf');
+    const tiles = page.getByTestId('flavor-tile');
+    await expect(tiles.nth(0)).toContainText('Классика');
+    await expect(tiles.nth(1)).toContainText('Сырный');
+    await expect(tiles.nth(1).getByTestId('flavor-badge')).toHaveText('New');
+    await expect(tiles.nth(0).getByTestId('flavor-badge')).toHaveCount(0);
+    await expect(page.getByTestId('hero-badge')).toHaveCount(0);
+    await tiles.nth(1).click();
+    await expect(tiles.nth(1)).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('hero-badge')).toHaveText('New');
+    await tiles.filter({ hasText: 'Халва' }).click();
+    await expect(page.getByTestId('hero-badge')).toHaveCount(0);
+    await tiles.nth(1).click();
+    await expect(page.getByTestId('hero-badge')).toHaveText('New');
+    await expect(page.getByTestId('ingredient-chips')).toContainText('сырный крем');
+    await page.getByTestId('add-to-cart').click();
+    await expect(page.getByTestId('add-to-cart')).toHaveText('Добавлено');
+    await page.goto('/cart');
+    await expect(page.getByText('Раф')).toBeVisible();
+    await expect(page.getByText(/Сырный/)).toBeVisible();
+  });
+
+  test('старая ссылка на сырный раф открывает раф', async ({ page }) => {
+    await page.goto('/drink/cheese-raf');
+    await expect(page.getByRole('heading', { name: 'Раф' })).toBeVisible();
+    await expect(page.getByTestId('flavor-tile').nth(1)).toContainText('Сырный');
+    await expect(page.getByTestId('flavor-tile').nth(1)).toHaveAttribute('aria-selected', 'true');
+  });
+
   test('пользователь собирает раф с вкусом и кладёт в корзину', async ({ page }) => {
     await page.goto('/drink/raf');
     await page.getByTestId('flavor-tile').filter({ hasText: 'Халва' }).click();
@@ -75,5 +107,36 @@ test.describe('меню и карточка дизайна А', () => {
     await page.goto('/cart');
     await expect(page.getByText('Раф')).toBeVisible();
     await expect(page.getByText(/Халва/)).toBeVisible();
+  });
+
+  test('время готовности открывается из блока, рамка героя не прыгает', async ({ page }) => {
+    await page.goto('/drink/cappuccino');
+    const hero = page.locator('.drink-hero');
+    const sheet = page.locator('.drink-sheet');
+    await expect(hero).toBeVisible();
+    await expect(sheet).toBeVisible();
+    const before = await hero.evaluate((el) => el.getBoundingClientRect().height);
+    await page.getByTestId('flavor-tile').filter({ hasText: 'Капучино крем' }).click();
+    await expect(page.getByTestId('flavor-tile').filter({ hasText: 'Капучино крем' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    const after = await hero.evaluate((el) => el.getBoundingClientRect().height);
+    expect(after).toBe(before);
+
+    await page.getByTestId('ready-time-trigger').click();
+    await expect(page.getByTestId('ready-time-sheet')).toBeVisible();
+    await page.getByRole('button', { name: /Готово/ }).click();
+    await expect(page.getByTestId('ready-time-sheet')).toHaveCount(0);
+  });
+
+  test('назад из карточки возвращает в меню', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('heading', { name: 'Капучино', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Капучино', exact: true })).toBeVisible();
+    await page.getByTestId('drink-back').click();
+    await expect(page.getByTestId('category-tab-classics')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Капучино', exact: true })).toBeVisible();
+    await expect(page).toHaveURL(/\/(#drink-cappuccino)?$/);
   });
 });

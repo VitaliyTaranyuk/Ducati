@@ -27,6 +27,7 @@ describe('flavor prices after grouping', () => {
   it('charges signature raf more than classic at the same size', () => {
     const raf = FALLBACK_DRINKS.find((d) => d.id === 'raf')!;
     expect(drinkSizePrice(raf, 'M', 'Классика')).toBe(250);
+    expect(drinkSizePrice(raf, 'M', 'Сырный')).toBe(300);
     expect(drinkSizePrice(raf, 'M', 'Халва')).toBe(270);
     expect(drinkMinPrice(raf)).toBe(170);
   });

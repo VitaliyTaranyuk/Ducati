@@ -168,6 +168,40 @@ export function combineReadyAt(slot: HourSlot, minute: number): Date {
   return fromShopLocal(slot.year, slot.month, slot.day, slot.hour, minute);
 }
 
+export function writeStoredReadyAt(date: Date): void {
+  try {
+    sessionStorage.setItem('readyAt', date.toISOString());
+  } catch {
+    /* private mode */
+  }
+}
+
+export function formatReadyAtClock(date: Date): string {
+  const p = shopParts(date);
+  return `${pad2(p.hour)}:${pad2(p.minute)}`;
+}
+
+export function formatShopDay(now: Date, dayOffset: 0 | 1): string {
+  const n = shopParts(now);
+  const ymd = dayOffset === 0 ? n : addShopDays(n, dayOffset);
+  return fromShopLocal(ymd.year, ymd.month, ymd.day, 12, 0).toLocaleDateString('ru-RU', {
+    timeZone: SHOP_TZ,
+    day: 'numeric',
+    month: 'long',
+  });
+}
+
+export function shiftReadyAtDay(value: Date, dayOffset: 0 | 1, now: Date = new Date()): Date {
+  const nextSlots = hourSlots(now).filter((s) => s.dayOffset === dayOffset);
+  if (nextSlots.length === 0) return value;
+  const current = slotOf(value, now);
+  const parts = shopParts(value);
+  const nextSlot = nextSlots.find((s) => s.hour === current.hour) ?? nextSlots[0];
+  const opts = minuteOptions(nextSlot, now);
+  const minute = opts.includes(parts.minute) ? parts.minute : (opts[0] ?? 0);
+  return combineReadyAt(nextSlot, minute);
+}
+
 export function formatReadyAtLabel(date: Date, now: Date = new Date()): string {
   const p = shopParts(date);
   const n = shopParts(now);

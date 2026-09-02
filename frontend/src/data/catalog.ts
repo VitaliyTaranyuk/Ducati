@@ -20,6 +20,7 @@ function sml(drinkId: string, prices: { s?: number; m?: number; l?: number }): D
 export const DRINK_ID_ALIASES: Record<string, string> = {
   'raf-cream': 'raf',
   'raf-signature': 'raf',
+  'cheese-raf': 'raf',
   'latte-pumpkin': 'latte',
 };
 
@@ -53,15 +54,16 @@ export const FALLBACK_DRINKS: Drink[] = [
   {
     id: 'raf',
     name: 'Раф',
-    description: 'Сливочный раф на эспрессо и сливках. Классика или авторский вкус',
+    description: 'Сливочный раф на эспрессо и сливках. Классика, сезонное или авторский вкус',
     imageUrl: publicUrl('drinks/raf.jpg'),
     isActive: true,
     sortOrder: 1,
     category: 'classics',
     badge: null,
-    flavorOptions: ['Классика', 'Халва', 'Цитрус', 'Арахис', 'Медовик'],
+    flavorOptions: ['Классика', 'Сырный', 'Халва', 'Цитрус', 'Арахис', 'Медовик'],
     flavorPrices: {
       Классика: { S: 170, M: 250, L: 290 },
+      Сырный: { S: 230, M: 300, L: 350 },
       Халва: { S: 200, M: 270, L: 320 },
       Цитрус: { S: 200, M: 270, L: 320 },
       Арахис: { S: 200, M: 270, L: 320 },
@@ -133,18 +135,6 @@ export const FALLBACK_DRINKS: Drink[] = [
     badge: null,
     flavorOptions: [],
     sizes: sml('matcha-green', { s: 190, m: 250, l: 290 }),
-  },
-  {
-    id: 'cheese-raf',
-    name: 'Сырный раф',
-    description: 'Раф с сырным кремом',
-    imageUrl: publicUrl('drinks/cheese-raf.jpg'),
-    isActive: true,
-    sortOrder: 7,
-    category: 'classics',
-    badge: 'NEW',
-    flavorOptions: [],
-    sizes: sml('cheese-raf', { s: 230, m: 300, l: 350 }),
   },
   {
     id: 'hot-chocolate',

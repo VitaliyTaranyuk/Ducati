@@ -17,16 +17,19 @@ describe('grouped menu catalog', () => {
     expect(hot).toContain('latte');
     expect(hot).toContain('cappuccino');
     expect(hot).toContain('tea');
-    expect(hot).toContain('cheese-raf');
+    expect(hot).not.toContain('cheese-raf');
     expect(hot).not.toContain('iced-latte');
   });
 
-  it('merges raf classic with signature flavors on one card', () => {
+  it('merges raf classic with seasonal and signature flavors on one card', () => {
     const raf = FALLBACK_DRINKS.find((d) => d.id === 'raf');
-    expect(raf?.flavorOptions).toEqual(['Классика', 'Халва', 'Цитрус', 'Арахис', 'Медовик']);
+    expect(raf?.flavorOptions).toEqual(['Классика', 'Сырный', 'Халва', 'Цитрус', 'Арахис', 'Медовик']);
+    expect(raf?.badge).toBeNull();
     expect(raf?.flavorPrices?.Классика?.M).toBe(250);
+    expect(raf?.flavorPrices?.Сырный?.M).toBe(300);
     expect(raf?.flavorPrices?.Халва?.M).toBe(270);
     expect(FALLBACK_DRINKS.some((d) => d.id === 'raf-signature')).toBe(false);
+    expect(FALLBACK_DRINKS.some((d) => d.id === 'cheese-raf')).toBe(false);
   });
 
   it('merges latte classic with pumpkin and orchid', () => {
@@ -45,6 +48,7 @@ describe('grouped menu catalog', () => {
   it('resolves old drink ids to the grouped cards', () => {
     expect(resolveDrinkId('raf-cream')).toBe('raf');
     expect(resolveDrinkId('raf-signature')).toBe('raf');
+    expect(resolveDrinkId('cheese-raf')).toBe('raf');
     expect(resolveDrinkId('latte-pumpkin')).toBe('latte');
     expect(resolveDrinkId('tea')).toBe('tea');
   });

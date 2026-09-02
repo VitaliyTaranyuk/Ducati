@@ -16,13 +16,79 @@ import {
   SYRUP_MODIFIER_NAME,
 } from '../lib/menu';
 import { drinkChips } from '../lib/ingredients';
-import { flavorImageUrl } from '../data/flavors';
+import { flavorBadge, flavorImageUrl } from '../data/flavors';
 import { readStoredReadyAt } from '../lib/readyAt';
 import { ReadyTimePicker } from '../components/ReadyTimePicker';
 import { FlavorPhotoTiles } from '../components/FlavorPhotoTiles';
 import { SegmentSlider } from '../components/SegmentSlider';
 import { SyrupStrip } from '../components/SyrupStrip';
 import type { DrinkSize, Modifier } from '../types';
+
+function HeroPhoto({
+  url,
+  alt,
+  failed,
+  onError,
+}: {
+  url?: string | null;
+  alt: string;
+  failed: boolean;
+  onError: () => void;
+}) {
+  const [base, setBase] = useState(url);
+  const [overlay, setOverlay] = useState<string | null>(null);
+  const [overlayOn, setOverlayOn] = useState(false);
+
+  useEffect(() => {
+    if (!url || url === base || failed) return;
+    setOverlay(url);
+    setOverlayOn(false);
+    const frame = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => setOverlayOn(true));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [url, base, failed]);
+
+  useEffect(() => {
+    if (!overlayOn || !overlay) return;
+    const t = window.setTimeout(() => {
+      setBase(overlay);
+      setOverlay(null);
+      setOverlayOn(false);
+    }, 480);
+    return () => window.clearTimeout(t);
+  }, [overlayOn, overlay]);
+
+  useEffect(() => {
+    if (failed) {
+      setOverlay(null);
+      setOverlayOn(false);
+    }
+  }, [failed]);
+
+  if (!url || failed) {
+    return (
+      <span className="absolute inset-0 flex items-center justify-center text-6xl" aria-hidden>
+        🐾
+      </span>
+    );
+  }
+
+  return (
+    <>
+      {base ? <img src={base} alt={alt} onError={onError} /> : null}
+      {overlay ? (
+        <img
+          src={overlay}
+          alt=""
+          aria-hidden
+          className={overlayOn ? 'is-overlay on' : 'is-overlay'}
+          onError={onError}
+        />
+      ) : null}
+    </>
+  );
+}
 
 export function DrinkDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -61,6 +127,7 @@ export function DrinkDetailPage() {
   const [imgFailed, setImgFailed] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
   const addedTimer = useRef<number>();
+  const stageScroll = useRef<HTMLDivElement>(null);
   const [readyAt, setReadyAt] = useState(readStoredReadyAt);
 
   const variantOptions = drink?.category === 'ice' ? [] : (drink?.flavorOptions ?? []);
@@ -74,12 +141,13 @@ export function DrinkDetailPage() {
     setImgFailed(false);
     setJustAdded(false);
     const options = drink?.category === 'ice' ? [] : (drink?.flavorOptions ?? []);
-    setFlavor(options[0] ?? '');
+    const fromAlias = id === 'cheese-raf' && options.includes('Сырный') ? 'Сырный' : undefined;
+    setFlavor(fromAlias ?? options[0] ?? '');
     setSyrup(null);
     setPlantMilk(false);
     setSelectedMods([]);
     window.clearTimeout(addedTimer.current);
-  }, [drink?.id]);
+  }, [drink?.id, id]);
 
   useEffect(() => {
     setImgFailed(false);
@@ -87,6 +155,7 @@ export function DrinkDetailPage() {
 
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
+    stageScroll.current?.scrollTo(0, 0);
   }, [id]);
 
   useEffect(() => () => window.clearTimeout(addedTimer.current), []);
@@ -127,6 +196,7 @@ export function DrinkDetailPage() {
   const canAdd = !!activeSize && selectedSize && (!needsFlavor || !!flavor);
   const heroUrl = (flavor && flavorImageUrl(flavor, drink.id)) || drink.imageUrl;
   const chips = drinkChips(drink, flavor, plantMilk);
+  const photoBadge = flavor ? flavorBadge(flavor) : drink.badge;
 
   const toggleMod = (mod: Modifier) => {
     setSelectedMods((prev) =>
@@ -171,178 +241,179 @@ export function DrinkDetailPage() {
   }));
 
   return (
-    <div className="flex min-h-[calc(100dvh-4.25rem)] flex-col">
-      <div className="w-full aspect-[16/9] bg-brand-accent flex items-center justify-center relative">
-        {heroUrl && !imgFailed ? (
-          <img
-            key={heroUrl}
-            src={heroUrl}
-            alt={drink.name}
-            className="w-full h-full object-cover"
-            onError={() => setImgFailed(true)}
-          />
-        ) : (
-          <span className="text-6xl" aria-hidden>
-            🐾
-          </span>
-        )}
-        <Link
-          to={drinkMenuPath(drink)}
-          aria-label="Назад"
-          className="absolute top-3 left-3 z-10 w-8 h-8 rounded-full bg-brand-cream/80 text-brand-dark/65 text-sm flex items-center justify-center"
-        >
-          ←
-        </Link>
-        {drink.badge && (
-          <span className="absolute top-4 right-4 bg-brand text-brand-paper text-xs font-semibold px-2.5 py-1 rounded-full">
-            {drink.badge}
+    <div className="drink-stage">
+      <div className="drink-hero">
+        <HeroPhoto
+          key={drink.id}
+          url={heroUrl}
+          alt={drink.name}
+          failed={imgFailed}
+          onError={() => setImgFailed(true)}
+        />
+        {photoBadge && (
+          <span
+            data-testid="hero-badge"
+            className="absolute top-4 right-4 z-10 bg-brand text-brand-paper text-xs font-semibold px-2.5 py-1 rounded-full"
+          >
+            {photoBadge}
           </span>
         )}
       </div>
-      <div className="flex flex-1 flex-col px-4 pt-6">
-        <h1 className="font-display text-2xl font-bold text-brand-dark">{drink.name}</h1>
-        {drink.description && <p className="text-brand-dark/60 mt-2">{drink.description}</p>}
+      <Link
+        to={drinkMenuPath(drink)}
+        aria-label="Назад"
+        data-testid="drink-back"
+        className="absolute top-3 left-3 z-[3] w-8 h-8 rounded-full bg-brand-cream/80 text-brand-dark/65 text-sm flex items-center justify-center"
+      >
+        ←
+      </Link>
+      <div ref={stageScroll} className="drink-scroll">
+        <div className="drink-sheet flex min-h-full flex-col px-4 pb-0 pt-2">
+          <span className="mx-auto mb-3 mt-1 block h-1 w-10 rounded-full bg-brand-dark/20" aria-hidden />
+          <h1 className="font-display text-2xl font-bold text-brand-dark">{drink.name}</h1>
+          {drink.description && <p className="text-brand-dark/60 mt-2">{drink.description}</p>}
 
-        {chips.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-1.5" data-testid="ingredient-chips">
-            {chips.map((chip) => (
-              <span
-                key={chip}
-                className="rounded-full bg-brand-accent px-2.5 py-1 text-xs text-brand-dark"
-              >
-                {chip}
-              </span>
-            ))}
-          </div>
-        )}
+          {chips.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5" data-testid="ingredient-chips">
+              {chips.map((chip) => (
+                <span
+                  key={chip}
+                  className="rounded-full bg-brand-accent px-2.5 py-1 text-xs text-brand-dark"
+                >
+                  {chip}
+                </span>
+              ))}
+            </div>
+          )}
 
-        {needsFlavor && (
+          {needsFlavor && (
+            <div className="mt-6">
+              <p id="flavor-label" className="text-sm font-medium text-brand-dark">
+                Вкусы
+              </p>
+              <FlavorPhotoTiles
+                drinkId={drink.id}
+                options={variantOptions}
+                value={flavor}
+                onSelect={setFlavor}
+                priceFor={
+                  hasPricedFlavors(drink) && activeSize
+                    ? (name) => drinkSizePrice(drink, activeSize, name)
+                    : undefined
+                }
+              />
+            </div>
+          )}
+
           <div className="mt-6">
-            <p id="flavor-label" className="text-sm font-medium text-brand-dark">
-              Вкусы
-            </p>
-            <FlavorPhotoTiles
-              drinkId={drink.id}
-              options={variantOptions}
-              value={flavor}
-              onSelect={setFlavor}
-              priceFor={
-                hasPricedFlavors(drink) && activeSize
-                  ? (name) => drinkSizePrice(drink, activeSize, name)
-                  : undefined
-              }
-            />
-          </div>
-        )}
-
-        <div className="mt-6">
-          <p id="volume-label" className="text-sm font-medium text-brand-dark">
-            Объём
-          </p>
-          <div className="mt-2">
-            <SegmentSlider
-              labelledBy="volume-label"
-              testId="volume-slider"
-              options={volumeOptions}
-              value={activeSize ?? volumeOptions[0]?.value}
-              onChange={setSize}
-            />
-          </div>
-        </div>
-
-        {showMilk && milkMod && (
-          <div className="mt-6">
-            <p id="milk-label" className="text-sm font-medium text-brand-dark">
-              Молоко
+            <p id="volume-label" className="text-sm font-medium text-brand-dark">
+              Объём
             </p>
             <div className="mt-2">
               <SegmentSlider
-                labelledBy="milk-label"
-                testId="milk-slider"
-                options={[
-                  { value: 'dairy', label: 'Обычное', sublabel: 'в цене' },
-                  {
-                    value: 'plant',
-                    label: 'Растительное',
-                    sublabel: `+${milkMod.price} ₽`,
-                  },
-                ]}
-                value={plantMilk ? 'plant' : 'dairy'}
-                onChange={(next) => setPlantMilk(next === 'plant')}
+                labelledBy="volume-label"
+                testId="volume-slider"
+                options={volumeOptions}
+                value={activeSize ?? volumeOptions[0]?.value}
+                onChange={setSize}
               />
             </div>
           </div>
-        )}
 
-        {(showSyrup || extraModifiers.length > 0) && (
-          <div className="mt-6">
-            <p className="text-sm font-medium text-brand-dark">
-              {showSyrup ? 'Сироп' : 'Дополнительно'}
-            </p>
-            {showSyrup && (
+          {showMilk && milkMod && (
+            <div className="mt-6">
+              <p id="milk-label" className="text-sm font-medium text-brand-dark">
+                Молоко
+              </p>
               <div className="mt-2">
-                <SyrupStrip
-                  selectedName={syrup}
-                  includedInPrice={syrupIncluded}
-                  price={syrupMod?.price ?? 40}
-                  onSelect={setSyrup}
+                <SegmentSlider
+                  labelledBy="milk-label"
+                  testId="milk-slider"
+                  options={[
+                    { value: 'dairy', label: 'Обычное', sublabel: 'входит в стоимость' },
+                    {
+                      value: 'plant',
+                      label: 'Растительное',
+                      sublabel: `+${milkMod.price} ₽`,
+                    },
+                  ]}
+                  value={plantMilk ? 'plant' : 'dairy'}
+                  onChange={(next) => setPlantMilk(next === 'plant')}
                 />
               </div>
-            )}
-            {extraModifiers.length > 0 && (
-              <div className="mt-2 space-y-2">
-                {extraModifiers.map((mod) => (
-                  <label
-                    key={mod.id}
-                    className="flex items-center gap-3 p-3 bg-brand-paper rounded-xl border border-brand-dark/10"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedMods.includes(mod.id)}
-                      onChange={() => toggleMod(mod)}
-                      className="w-5 h-5 accent-brand"
-                    />
-                    <span className="flex-1">{mod.name}</span>
-                    <span className="font-sans font-semibold text-brand">+{mod.price} ₽</span>
-                  </label>
-                ))}
-              </div>
-            )}
+            </div>
+          )}
+
+          {(showSyrup || extraModifiers.length > 0) && (
+            <div className="mt-6">
+              <p className="text-sm font-medium text-brand-dark">
+                {showSyrup ? 'Сироп' : 'Дополнительно'}
+              </p>
+              {showSyrup && (
+                <div className="mt-2">
+                  <SyrupStrip
+                    selectedName={syrup}
+                    includedInPrice={syrupIncluded}
+                    price={syrupMod?.price ?? 40}
+                    onSelect={setSyrup}
+                  />
+                </div>
+              )}
+              {extraModifiers.length > 0 && (
+                <div className="mt-2 space-y-2">
+                  {extraModifiers.map((mod) => (
+                    <label
+                      key={mod.id}
+                      className="flex items-center gap-3 p-3 bg-brand-paper rounded-xl border border-brand-dark/10"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedMods.includes(mod.id)}
+                        onChange={() => toggleMod(mod)}
+                        className="w-5 h-5 accent-brand"
+                      />
+                      <span className="flex-1">{mod.name}</span>
+                      <span className="font-sans font-semibold text-brand">+{mod.price} ₽</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="mt-6">
+            <ReadyTimePicker value={readyAt} onChange={setReadyAt} />
           </div>
-        )}
 
-        <div className="mt-6">
-          <ReadyTimePicker value={readyAt} onChange={setReadyAt} />
-        </div>
-
-        <div
-          className={
-            canAdd
-              ? 'sticky bottom-0 z-20 mt-auto -mx-4 bg-transparent px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]'
-              : 'mt-8 -mx-4 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]'
-          }
-        >
-          <button
-            type="button"
-            data-testid="add-to-cart"
-            disabled={!canAdd}
-            onClick={handleAdd}
-            aria-live="polite"
-            aria-disabled={!canAdd}
+          <div
             className={
               canAdd
-                ? 'w-full rounded-2xl border border-[rgba(60,48,40,0.12)] bg-white/[0.18] py-4 text-lg font-semibold text-brand backdrop-blur [text-shadow:0_0_10px_#FAF7F2,0_1px_0_#FAF7F2]'
-                : 'w-full cursor-not-allowed rounded-2xl border border-brand-dark/10 bg-brand-paper/70 py-4 text-lg font-semibold text-brand-dark/35'
+                ? 'sticky bottom-0 z-20 mt-auto -mx-4 bg-transparent px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]'
+                : 'mt-8 -mx-4 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]'
             }
           >
-            {justAdded
-              ? 'Добавлено'
-              : canAdd
-                ? `В корзину · ${price} ₽`
-                : needsFlavor
-                  ? 'В корзину · выберите вкус'
-                  : 'В корзину'}
-          </button>
+            <button
+              type="button"
+              data-testid="add-to-cart"
+              disabled={!canAdd}
+              onClick={handleAdd}
+              aria-live="polite"
+              aria-disabled={!canAdd}
+              className={
+                canAdd
+                  ? 'w-full rounded-2xl border border-[rgba(60,48,40,0.12)] bg-white/[0.18] py-4 text-lg font-semibold text-brand backdrop-blur [text-shadow:0_0_10px_#FAF7F2,0_1px_0_#FAF7F2]'
+                  : 'w-full cursor-not-allowed rounded-2xl border border-brand-dark/10 bg-brand-paper/70 py-4 text-lg font-semibold text-brand-dark/35'
+              }
+            >
+              {justAdded
+                ? 'Добавлено'
+                : canAdd
+                  ? `В корзину · ${price} ₽`
+                  : needsFlavor
+                    ? 'В корзину · выберите вкус'
+                    : 'В корзину'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

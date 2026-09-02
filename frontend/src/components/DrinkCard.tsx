@@ -19,24 +19,27 @@ export function DrinkCard({ drink }: Props) {
       onClick={() => saveMenuReturn(drink)}
       className="block bg-brand-paper rounded-2xl shadow-sm overflow-hidden border border-brand-dark/10 active:scale-[0.98] transition-transform scroll-mt-24"
     >
-      <div className="aspect-[5/3] bg-brand-accent relative flex items-center justify-center">
+      <div className="relative aspect-[5/3] overflow-hidden bg-brand-accent">
         {showPhoto ? (
           <img
             src={drink.imageUrl!}
             alt={drink.name}
-            className="w-full h-full object-cover"
+            className="absolute inset-0 h-full w-full object-cover"
             loading="lazy"
             onError={() => setImgFailed(true)}
           />
         ) : (
-          <div className="flex flex-col items-center text-brand/70">
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-brand/70">
             <span className="text-5xl" aria-hidden>
               🐾
             </span>
           </div>
         )}
         {drink.badge && (
-          <span className="absolute top-3 right-3 bg-brand text-brand-paper text-xs font-semibold tracking-wide px-2.5 py-1 rounded-full">
+          <span
+            data-testid="drink-badge"
+            className="absolute top-3 right-3 bg-brand text-brand-paper text-xs font-semibold tracking-wide px-2.5 py-1 rounded-full"
+          >
             {drink.badge}
           </span>
         )}

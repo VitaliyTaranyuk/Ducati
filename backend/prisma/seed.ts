@@ -49,12 +49,13 @@ const MENU: DrinkSeed[] = [
   {
     name: 'Раф',
     formerNames: ['Раф / Капучино крем'],
-    description: 'Сливочный раф на эспрессо и сливках. Классика или авторский вкус',
+    description: 'Сливочный раф на эспрессо и сливках. Классика, сезонное или авторский вкус',
     category: 'classics',
     imageUrl: '/drinks/raf.jpg',
-    flavorOptions: ['Классика', 'Халва', 'Цитрус', 'Арахис', 'Медовик'],
+    flavorOptions: ['Классика', 'Сырный', 'Халва', 'Цитрус', 'Арахис', 'Медовик'],
     flavorPrices: {
       Классика: { S: 170, M: 250, L: 290 },
+      Сырный: { S: 230, M: 300, L: 350 },
       Халва: { S: 200, M: 270, L: 320 },
       Цитрус: { S: 200, M: 270, L: 320 },
       Арахис: { S: 200, M: 270, L: 320 },
@@ -102,14 +103,6 @@ const MENU: DrinkSeed[] = [
     category: 'classics',
     imageUrl: '/drinks/matcha.jpg',
     sizes: sml({ s: 190, m: 250, l: 290 }),
-  },
-  {
-    name: 'Сырный раф',
-    description: 'Раф с сырным кремом',
-    category: 'classics',
-    imageUrl: '/drinks/cheese-raf.jpg',
-    badge: 'NEW',
-    sizes: sml({ s: 230, m: 300, l: 350 }),
   },
   {
     name: 'Горячий шоколад / Какао',
